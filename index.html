@@ -362,15 +362,23 @@
 
         let editingGame = null; // guarda o jogo original aberto no modal de edição
 
+        // Valores de Interesse exatamente como a validação de dados da planilha espera
+        const INTERESSE_LABELS = { alto: 'Alto', médio: 'Médio', medio: 'Médio', baixo: 'Baixo' };
+        function normalizeInteresse(v) {
+            return (v || '').toString().toLowerCase().trim().replace('é', 'e');
+        }
+
         function openEditGame(game) {
             editingGame = game;
             document.getElementById('edit-row').value = game.row;
             document.getElementById('edit-nome').value = game.nome || '';
             document.getElementById('edit-plat').value = game.plataforma || '';
             const intSelect = document.getElementById('edit-val');
-            intSelect.value = game.interesse || 'médio';
+            // Seleciona a opção certa mesmo se a planilha tiver "Alto"/"Médio"/"Baixo" com maiúscula
+            const norm = normalizeInteresse(game.interesse) || 'medio';
+            const optionMap = { alto: 'alto', medio: 'médio', baixo: 'baixo' };
+            intSelect.value = optionMap[norm] || 'médio';
             const cols = SheetColumns[currentTab] || SheetColumns.backlog;
-            intSelect.parentElement.querySelector ? null : null;
             intSelect.style.display = cols.interesse ? 'block' : 'none';
             intSelect.previousElementSibling.style.display = cols.interesse ? 'block' : 'none';
             document.getElementById('modal-edit-game').style.display = 'flex';
@@ -380,7 +388,7 @@
             const row = document.getElementById('edit-row').value;
             const novoNome = document.getElementById('edit-nome').value.trim();
             const novaPlat = document.getElementById('edit-plat').value.trim();
-            const novoInt = document.getElementById('edit-val').value;
+            const novoIntRaw = document.getElementById('edit-val').value;
             document.getElementById('modal-edit-game').style.display = 'none';
             if(!editingGame) return;
 
@@ -393,8 +401,11 @@
             if(novaPlat && novaPlat !== editingGame.plataforma) {
                 calls.push({ action: 'EDIT_OR_MOVE', sheetName: cols.sheetName, row, col: cols.plataforma, value: novaPlat });
             }
-            if(cols.interesse && novoInt !== editingGame.interesse) {
-                calls.push({ action: 'EDIT_OR_MOVE', sheetName: cols.sheetName, row, col: cols.interesse, value: novoInt });
+            // Só mexe no Interesse se o usuário realmente trocou a opção (comparação
+            // ignora maiúsculas/acentos) — e envia já capitalizado como a planilha exige.
+            if(cols.interesse && normalizeInteresse(novoIntRaw) !== normalizeInteresse(editingGame.interesse)) {
+                const valorFinal = INTERESSE_LABELS[normalizeInteresse(novoIntRaw)] || novoIntRaw;
+                calls.push({ action: 'EDIT_OR_MOVE', sheetName: cols.sheetName, row, col: cols.interesse, value: valorFinal });
             }
 
             editingGame = null;
