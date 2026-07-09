@@ -177,12 +177,15 @@
         </div>
     </div>
 
-    <script>
+<script>
+        // Estrutura base de dados
         let gamesData = { backlog: [], concluidos: [], platinando: [], dropados: [] };
         let currentTab = 'backlog';
+        
+        // Cache de Imagens (SteamGridDB)
         let coverCache = JSON.parse(localStorage.getItem('coverCache')) || {};
 
-        // SVGs inline limpos
+        // Ícones SVGs Omitidos na explicação (Mantenha os que já estavam no seu código)
         const Icons = {
             trophy: `<svg viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>`,
             check: `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>`,
@@ -190,7 +193,8 @@
             gamepad: `<svg viewBox="0 0 24 24"><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="15" y1="13" x2="15.01" y2="13"/><line x1="18" y1="11" x2="18.01" y2="11"/><rect width="20" height="12" x="2" y="6" rx="2"/></svg>`,
             calendar: `<svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
             edit: `<svg viewBox="0 0 24 24"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>`,
-            restore: `<svg viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>`
+            restore: `<svg viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>`,
+            sync: `<svg viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.92-10.26l5.08 5.08"/></svg>`
         };
 
         const getSettings = () => ({
@@ -199,6 +203,7 @@
             steamgrid: localStorage.getItem('steamgrid_key') || ''
         });
 
+        // Preenche campos de config
         document.getElementById('set-url').value = getSettings().url;
         document.getElementById('set-token').value = getSettings().token;
         document.getElementById('set-steamgrid').value = getSettings().steamgrid;
@@ -208,9 +213,10 @@
             localStorage.setItem('gs_token', document.getElementById('set-token').value.trim());
             localStorage.setItem('steamgrid_key', document.getElementById('set-steamgrid').value.trim());
             document.getElementById('modal-settings').style.display = 'none';
-            loadData();
+            loadData(true); // Força um reload completo
         }
 
+        // Observer Lazy Loading (Capas SteamGrid)
         const imageObserver = new IntersectionObserver((entries, observer) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
@@ -227,7 +233,13 @@
         async function loadSteamGridCover(gameName, imgElement) {
             const key = getSettings().steamgrid;
             if(!key) return;
-            if(coverCache[gameName]) { imgElement.src = coverCache[gameName]; return; }
+            
+            // Se já está no LocalStorage, usa imediatamente sem bater na API
+            if(coverCache[gameName]) { 
+                imgElement.src = coverCache[gameName]; 
+                return; 
+            }
+
             try {
                 let res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(`https://www.steamgriddb.com/api/v2/search/autocomplete/${gameName}`)}`, { headers: { 'Authorization': `Bearer ${key}` }});
                 let data = JSON.parse(await res.json().then(r => r.contents));
@@ -236,25 +248,34 @@
                     let imgData = JSON.parse(await imgRes.json().then(r => r.contents));
                     if(imgData.data && imgData.data.length > 0) {
                         coverCache[gameName] = imgData.data[0].url;
-                        localStorage.setItem('coverCache', JSON.stringify(coverCache));
+                        localStorage.setItem('coverCache', JSON.stringify(coverCache)); // Salva no cache permanentemente
                         imgElement.src = imgData.data[0].url;
                     }
                 }
             } catch(e) {}
         }
 
+        // Funções de Ação na Planilha
         async function sendApiAction(payload) {
             const { url, token } = getSettings();
             if(!url || !token) return alert("Configure a URL e o Token primeiro.");
+            
             payload.token = token;
-            document.getElementById('loader').style.display = 'block';
+            const loader = document.getElementById('loader');
+            loader.innerText = 'Atualizando planilha...';
+            loader.style.display = 'block';
+
             try {
                 const res = await fetch(url, { method: 'POST', body: JSON.stringify(payload) });
                 const data = await res.json();
                 if(!data.success) alert("Erro: " + data.message);
-            } catch(e) { alert("Falha na requisição."); }
-            await loadData();
-            document.getElementById('loader').style.display = 'none';
+            } catch(e) { 
+                alert("Falha na requisição. Verifique sua conexão."); 
+            }
+            
+            // Após a ação, força o site a buscar os dados novos e re-renderizar
+            await loadData(true); 
+            loader.style.display = 'none';
         }
 
         const Actions = {
@@ -277,7 +298,9 @@
         }
 
         async function fetchTrophiesGlobal() {
-            if(confirm("Buscar troféus mais recentes?")) await sendApiAction({ action: 'FETCH_TROPHIES' });
+            if(confirm("Buscar troféus mais recentes nas APIs (Steam/Xbox)? Isso fará uma busca profunda.")) {
+                await sendApiAction({ action: 'FETCH_TROPHIES' });
+            }
         }
 
         async function addGame() {
@@ -285,12 +308,15 @@
             const plataforma = document.getElementById('add-plat').value;
             const interesse = document.getElementById('add-int').value;
             if(!nome || !plataforma) return;
+            
             document.getElementById('modal-add').style.display = 'none';
-            document.getElementById('add-nome').value = ''; document.getElementById('add-plat').value = '';
+            document.getElementById('add-nome').value = ''; 
+            document.getElementById('add-plat').value = '';
+            
             await sendApiAction({ action: 'ADD_GAME', nome, plataforma, interesse });
         }
 
-        // Helpers Lógicos
+        // Helpers
         function isPlatinum(game) {
             if (game.isPlatinado === true) return true;
             if (game.trofeus && (game.trofeus === '100%' || game.trofeus.startsWith('100.00'))) return true;
@@ -304,35 +330,79 @@
             return d.toLocaleDateString('pt-BR');
         }
 
-        async function loadData() {
+        // ==========================================
+        // O CORAÇÃO DO CACHE INTELIGENTE (SWR)
+        // ==========================================
+        async function loadData(forceSync = false) {
             const { url } = getSettings();
             if (!url) return;
-            document.getElementById('loader').style.display = 'block';
+
+            const loader = document.getElementById('loader');
+            const cachedString = localStorage.getItem('gs_cached_data');
+
+            // 1. CARREGAMENTO IMEDIATO: Lê o Cache local e renderiza na hora (0 loading screen)
+            if (cachedString) {
+                try {
+                    gamesData = JSON.parse(cachedString);
+                    updateDashboard();
+                    renderGrid();
+                } catch(e) { console.warn("Cache corrompido, resetando..."); }
+            }
+
+            // 2. BUSCA EM SEGUNDO PLANO (Silenciosa se já tiver cache, Visível se não tiver)
+            if (!cachedString || forceSync) {
+                loader.innerText = 'Baixando planilha...';
+                loader.style.display = 'block';
+            } else {
+                loader.innerText = 'Sincronizando em 2º plano...';
+                loader.style.display = 'block';
+            }
+
             try {
                 const res = await fetch(url);
-                gamesData = await res.json();
-                updateDashboard();
-            } catch(e) { console.error("Erro GET"); }
-            document.getElementById('loader').style.display = 'none';
-            renderGrid();
+                const freshData = await res.json();
+                const freshString = JSON.stringify(freshData);
+
+                // 3. COMPARAÇÃO: Só recarrega a tela se houver novidades na planilha
+                if (freshString !== cachedString) {
+                    gamesData = freshData;
+                    localStorage.setItem('gs_cached_data', freshString); // Atualiza o cache local
+                    updateDashboard();
+                    renderGrid();
+                    console.log("Tela atualizada com dados recentes da planilha.");
+                } else {
+                    console.log("Seu cache local já está 100% atualizado com a planilha.");
+                }
+            } catch(e) { 
+                console.error("Falha ao sincronizar com o Google Sheets", e); 
+            } finally {
+                loader.style.display = 'none'; // Esconde o toaster do canto
+            }
         }
 
+        // Tratamento anti-erro para o Dashboard (Validação garantida)
         function updateDashboard() {
-            document.getElementById('stat-backlog').innerText = gamesData.backlog.length;
-            document.getElementById('stat-completed').innerText = gamesData.concluidos.length + gamesData.platinando.filter(g => isPlatinum(g)).length;
+            const backlog = gamesData.backlog || [];
+            const concluidos = gamesData.concluidos || [];
+            const platinando = gamesData.platinando || [];
+            const dropados = gamesData.dropados || [];
+
+            document.getElementById('stat-backlog').innerText = backlog.length;
             
-            // Soma platinas baseado no checkbox ou 100% de troféu (mesmo se estiver na lista de concluídos da esquerda)
-            let totalPlat = gamesData.concluidos.filter(isPlatinum).length + gamesData.platinando.filter(isPlatinum).length; 
+            let concluidosReais = concluidos.length + platinando.filter(g => isPlatinum(g)).length;
+            document.getElementById('stat-completed').innerText = concluidosReais;
+            
+            let totalPlat = concluidos.filter(isPlatinum).length + platinando.filter(isPlatinum).length; 
             document.getElementById('stat-plats').innerText = totalPlat;
             
-            document.getElementById('stat-dropped').innerText = gamesData.dropados.length;
+            document.getElementById('stat-dropped').innerText = dropados.length;
         }
 
         function changeTab(tabName) {
             currentTab = tabName;
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             event.target.classList.add('active');
-            renderGrid();
+            renderGrid(); // Como os dados já estão no cache em RAM, trocar de aba é instantâneo
         }
 
         function renderGrid() {
@@ -350,18 +420,14 @@
                 card.className = 'card';
                 
                 const platStatus = isPlatinum(game);
-                
-                // Data
                 let dateHTML = game.data ? `<p class="meta-text">${Icons.calendar} ${formatDate(game.data)}</p>` : '';
                 
-                // Interesse
                 let intHTML = '';
                 if (game.interesse) {
                     let dotClass = 'dot-' + game.interesse.toLowerCase().replace('é', 'e');
                     intHTML = `<p class="meta-text"><span class="dot ${dotClass}"></span> Interesse ${game.interesse.charAt(0).toUpperCase() + game.interesse.slice(1)}</p>`;
                 }
 
-                // Troféus (Barra Sóbria)
                 let trophyHTML = '';
                 if (game.trofeus && game.trofeus !== 'Não vinculado') {
                     let percent = parseFloat(game.trofeus) || 0;
@@ -380,7 +446,6 @@
                     trophyHTML = `<p class="meta-text" style="margin-top:auto; font-size:11px;">Sem vínculo</p>`;
                 }
 
-                // Ações Dinâmicas (Ocultando botões de platina se já estiver platinado)
                 let actionsHTML = '';
                 if(currentTab === 'backlog') {
                     actionsHTML = `
@@ -391,7 +456,6 @@
                         </div>
                     `;
                 } else if(currentTab === 'concluidos') {
-                    // SE já for platina (por troféu de 100% ou marcar), esconde o botão de Iniciar Platina.
                     if (!platStatus) {
                         actionsHTML = `
                             <div class="card-actions full">
@@ -413,7 +477,6 @@
                     `;
                 }
 
-                // Badge (Platinado usa cor fixa, Plataforma usa cor neutra transparente)
                 let badgeHTML = platStatus 
                     ? `<div class="badge plat">${Icons.trophy} Platinado</div>`
                     : `<div class="badge">${game.plataforma}</div>`;
@@ -437,7 +500,9 @@
             });
         }
 
+        // Inicialização automática
         if(getSettings().url) loadData();
+
     </script>
 </body>
 </html>
