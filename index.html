@@ -148,12 +148,13 @@
         </div>
     </div>
 
-    <div class="modal" id="modal-settings">
+<div class="modal" id="modal-settings">
         <div class="modal-content">
             <h2>Configurações do App</h2>
             <input type="text" id="set-url" placeholder="Google Apps Script URL">
-            <input type="password" id="set-token" placeholder="API Token">
-            <input type="password" id="set-steamgrid" placeholder="SteamGridDB Key">
+            <input type="password" id="set-token" placeholder="API Token (Sheets)">
+            <input type="password" id="set-steamgrid" placeholder="SteamGridDB Key (Primário)">
+            <input type="password" id="set-rawg" placeholder="RAWG API Key (Fallback)">
             <div class="modal-actions">
                 <button class="primary" onclick="saveSettings()">Aplicar</button>
                 <button onclick="document.getElementById('modal-settings').style.display='none'">Fechar</button>
@@ -197,23 +198,25 @@
             sync: `<svg viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.92-10.26l5.08 5.08"/></svg>`
         };
 
-        const getSettings = () => ({
+const getSettings = () => ({
             url: localStorage.getItem('gs_url') || '',
             token: localStorage.getItem('gs_token') || '',
-            steamgrid: localStorage.getItem('steamgrid_key') || ''
+            steamgrid: localStorage.getItem('steamgrid_key') || '',
+            rawg: localStorage.getItem('rawg_key') || ''
         });
 
-        // Preenche campos de config
         document.getElementById('set-url').value = getSettings().url;
         document.getElementById('set-token').value = getSettings().token;
         document.getElementById('set-steamgrid').value = getSettings().steamgrid;
+        document.getElementById('set-rawg').value = getSettings().rawg;
 
         function saveSettings() {
             localStorage.setItem('gs_url', document.getElementById('set-url').value.trim());
             localStorage.setItem('gs_token', document.getElementById('set-token').value.trim());
             localStorage.setItem('steamgrid_key', document.getElementById('set-steamgrid').value.trim());
+            localStorage.setItem('rawg_key', document.getElementById('set-rawg').value.trim());
             document.getElementById('modal-settings').style.display = 'none';
-            loadData(true); // Força um reload completo
+            loadData(true);
         }
 
         // Observer Lazy Loading (Capas SteamGrid)
@@ -222,7 +225,7 @@
                 if (entry.isIntersecting) {
                     const img = entry.target;
                     if (img.dataset.name && !img.dataset.loaded) {
-                        loadSteamGridCover(img.dataset.name, img);
+                        loadGameCover(img.dataset.name, img);
                         img.dataset.loaded = "true";
                     }
                     observer.unobserve(img);
@@ -230,38 +233,39 @@
             });
         }, { rootMargin: '100px 0px', threshold: 0.1 });
 
-async function loadSteamGridCover(gameName, imgElement) {
-            const { url, token, steamgrid } = getSettings();
-            if(!url || !token || !steamgrid) return;
+        async function loadGameCover(gameName, imgElement) {
+            const { url, token, steamgrid, rawg } = getSettings();
+            if(!url || !token) return;
             
-            // Se já está no cache local, carrega na mesma hora!
             if(coverCache[gameName]) { 
                 imgElement.src = coverCache[gameName]; 
                 return; 
             }
 
+            // Se não tiver nenhuma das duas chaves, nem tenta buscar
+            if(!steamgrid && !rawg) return;
+
             try {
-                // Pede pro Google Apps Script buscar a capa (Adeus CORS!)
                 const res = await fetch(url, {
                     method: 'POST',
                     body: JSON.stringify({
                         action: 'GET_COVER',
                         token: token,
                         steamgridKey: steamgrid,
+                        rawgKey: rawg,
                         gameName: gameName
                     })
                 });
                 
                 const data = await res.json();
                 
-                // Se o Google achar a capa, salva no cache e mostra
                 if(data.success && data.coverUrl) {
                     coverCache[gameName] = data.coverUrl;
                     localStorage.setItem('coverCache', JSON.stringify(coverCache));
                     imgElement.src = data.coverUrl;
                 }
             } catch(e) {
-                console.warn(`Erro ao buscar capa para ${gameName} via Apps Script.`, e);
+                console.warn(`Erro ao buscar capa para ${gameName}.`, e);
             }
         }
 
