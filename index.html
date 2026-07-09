@@ -231,43 +231,37 @@
         }, { rootMargin: '100px 0px', threshold: 0.1 });
 
 async function loadSteamGridCover(gameName, imgElement) {
-            const key = getSettings().steamgrid;
-            if(!key) return;
+            const { url, token, steamgrid } = getSettings();
+            if(!url || !token || !steamgrid) return;
             
-            // Se já está no LocalStorage, usa imediatamente
+            // Se já está no cache local, carrega na mesma hora!
             if(coverCache[gameName]) { 
                 imgElement.src = coverCache[gameName]; 
                 return; 
             }
 
             try {
-                // Usamos o corsproxy.io que lida perfeitamente com headers do GitHub Pages
-                const searchUrl = `https://corsproxy.io/?${encodeURIComponent(`https://www.steamgriddb.com/api/v2/search/autocomplete/${gameName}`)}`;
-                
-                let res = await fetch(searchUrl, { 
-                    headers: { 'Authorization': `Bearer ${key}` }
+                // Pede pro Google Apps Script buscar a capa (Adeus CORS!)
+                const res = await fetch(url, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'GET_COVER',
+                        token: token,
+                        steamgridKey: steamgrid,
+                        gameName: gameName
+                    })
                 });
                 
-                let data = await res.json(); // Bem mais limpo, pega o JSON direto
+                const data = await res.json();
                 
-                if(data.data && data.data.length > 0) {
-                    let gameId = data.data[0].id;
-                    const imgUrl = `https://corsproxy.io/?${encodeURIComponent(`https://www.steamgriddb.com/api/v2/grids/game/${gameId}?dimensions=600x900`)}`;
-                    
-                    let imgRes = await fetch(imgUrl, { 
-                        headers: { 'Authorization': `Bearer ${key}` }
-                    });
-                    
-                    let imgData = await imgRes.json();
-                    
-                    if(imgData.data && imgData.data.length > 0) {
-                        coverCache[gameName] = imgData.data[0].url;
-                        localStorage.setItem('coverCache', JSON.stringify(coverCache));
-                        imgElement.src = imgData.data[0].url;
-                    }
+                // Se o Google achar a capa, salva no cache e mostra
+                if(data.success && data.coverUrl) {
+                    coverCache[gameName] = data.coverUrl;
+                    localStorage.setItem('coverCache', JSON.stringify(coverCache));
+                    imgElement.src = data.coverUrl;
                 }
             } catch(e) {
-                console.warn(`Aviso: Não foi possível carregar a capa de ${gameName}`, e);
+                console.warn(`Erro ao buscar capa para ${gameName} via Apps Script.`, e);
             }
         }
 
