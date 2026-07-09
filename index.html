@@ -26,7 +26,7 @@
         svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: text-bottom; margin-right: 4px; }
         
         /* Header & Dashboard */
-        header { display: flex; justify-content: space-between; align-items: center; padding: 30px 0 20px 0; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+        header { display: flex; justify-content: space-between; align-items: center; padding: 30px 0 20px 0; border-bottom: 1px solid var(--border); margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
         h1 { font-size: 22px; font-weight: 600; margin: 0; color: #fff; }
         
         .header-actions { display: flex; gap: 8px; }
@@ -40,11 +40,19 @@
         .stat-card span { display: block; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
         .stat-card strong { font-size: 24px; font-weight: 500; color: #fff; line-height: 1.2; }
 
-        /* Tabs */
-        .tabs { display: flex; gap: 10px; margin-bottom: 25px; }
+        /* Tabs & Search */
+        .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 15px; margin-bottom: 25px; flex-wrap: wrap; }
+        .tabs { display: flex; gap: 10px; flex-wrap: wrap; }
         .tab { background: transparent; border: 1px solid transparent; color: var(--text-muted); padding: 6px 12px; border-radius: 20px; cursor: pointer; font-size: 14px; transition: 0.2s; }
         .tab:hover { color: var(--text); background: var(--card-bg); }
         .tab.active { background: var(--card-bg); color: #fff; border-color: var(--border); }
+
+        .search-wrap { position: relative; flex: 0 1 260px; min-width: 180px; }
+        .search-wrap svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--text-muted); margin: 0; }
+        #search-input { width: 100%; box-sizing: border-box; padding: 8px 10px 8px 30px; border-radius: 20px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text); font-size: 13px; }
+        #search-input:focus { outline: none; border-color: #555; }
+        #search-clear { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; display: none; }
+        #search-clear svg { margin: 0; width: 12px; height: 12px; }
 
         /* Grid & Cards (Flat Design) */
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
@@ -58,6 +66,10 @@
         
         .badge { position: absolute; top: 10px; right: 10px; color: #fff; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; text-transform: uppercase; z-index: 2; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.1); }
         .badge.plat { background: var(--plat); border-color: var(--plat); color: #000; }
+
+        .edit-icon-btn { position: absolute; top: 10px; left: 10px; z-index: 2; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.1); color: #fff; width: 26px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .edit-icon-btn svg { margin: 0; width: 13px; height: 13px; }
+        .edit-icon-btn:hover { background: rgba(0,0,0,0.9); }
         
         .card-info { padding: 14px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; gap: 10px; }
         .card-info h3 { margin: 0; font-size: 14px; font-weight: 600; color: #fff; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -94,6 +106,7 @@
         .modal-content input:focus, .modal-content select:focus { outline: none; border-color: #555; }
         .modal-actions { display: flex; gap: 8px; margin-top: 10px; }
         .modal-actions button { flex: 1; justify-content: center; }
+        .field-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; display: block; }
     </style>
 </head>
 <body>
@@ -120,11 +133,20 @@
         <div class="stat-card"><span>Dropados</span><strong id="stat-dropped">0</strong></div>
     </div>
 
-    <div class="tabs">
-        <button class="tab active" onclick="changeTab('backlog')">Backlog</button>
-        <button class="tab" onclick="changeTab('platinando')">Platinando</button>
-        <button class="tab" onclick="changeTab('concluidos')">Concluídos</button>
-        <button class="tab" onclick="changeTab('dropados')">Dropados</button>
+    <div class="toolbar">
+        <div class="tabs">
+            <button class="tab active" onclick="changeTab('backlog')">Backlog</button>
+            <button class="tab" onclick="changeTab('platinando')">Platinando</button>
+            <button class="tab" onclick="changeTab('concluidos')">Concluídos</button>
+            <button class="tab" onclick="changeTab('dropados')">Dropados</button>
+        </div>
+        <div class="search-wrap">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="search-input" placeholder="Pesquisar por nome..." oninput="onSearchInput()">
+            <button id="search-clear" onclick="clearSearch()">
+                <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
     </div>
 
     <div id="loader">Sincronizando...</div>
@@ -154,6 +176,8 @@
             <input type="text" id="set-url" placeholder="Google Apps Script URL">
             <input type="password" id="set-token" placeholder="API Token (Sheets)">
             <input type="password" id="set-steamgrid" placeholder="SteamGridDB Key (Primário)">
+            <input type="password" id="set-igdb-id" placeholder="IGDB Client ID">
+            <input type="password" id="set-igdb-secret" placeholder="IGDB Client Secret (Twitch)">
             <input type="password" id="set-rawg" placeholder="RAWG API Key (Fallback)">
             <div class="modal-actions">
                 <button class="primary" onclick="saveSettings()">Aplicar</button>
@@ -162,18 +186,23 @@
         </div>
     </div>
 
-    <div class="modal" id="modal-edit-int">
+    <div class="modal" id="modal-edit-game">
         <div class="modal-content">
-            <h2>Alterar Interesse</h2>
+            <h2>Editar Jogo</h2>
             <input type="hidden" id="edit-row">
+            <label class="field-label">Nome</label>
+            <input type="text" id="edit-nome" placeholder="Nome do jogo">
+            <label class="field-label">Plataforma</label>
+            <input type="text" id="edit-plat" placeholder="Plataforma">
+            <label class="field-label">Interesse</label>
             <select id="edit-val">
                 <option value="alto">Alto</option>
                 <option value="médio">Médio</option>
                 <option value="baixo">Baixo</option>
             </select>
             <div class="modal-actions">
-                <button class="primary" onclick="confirmEditInterest()">Salvar</button>
-                <button onclick="document.getElementById('modal-edit-int').style.display='none'">Cancelar</button>
+                <button class="primary" onclick="confirmEditGame()">Salvar</button>
+                <button onclick="document.getElementById('modal-edit-game').style.display='none'">Cancelar</button>
             </div>
         </div>
     </div>
@@ -182,8 +211,9 @@
         // Estrutura base de dados
         let gamesData = { backlog: [], concluidos: [], platinando: [], dropados: [] };
         let currentTab = 'backlog';
+        let searchTerm = '';
         
-        // Cache de Imagens (SteamGridDB)
+        // Cache de Imagens (SteamGridDB / IGDB / RAWG)
         let coverCache = JSON.parse(localStorage.getItem('coverCache')) || {};
 
         // Ícones SVGs Omitidos na explicação (Mantenha os que já estavam no seu código)
@@ -198,28 +228,47 @@
             sync: `<svg viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.92-10.26l5.08 5.08"/></svg>`
         };
 
-const getSettings = () => ({
+        const getSettings = () => ({
             url: localStorage.getItem('gs_url') || '',
             token: localStorage.getItem('gs_token') || '',
             steamgrid: localStorage.getItem('steamgrid_key') || '',
+            igdbId: localStorage.getItem('igdb_client_id') || '',
+            igdbSecret: localStorage.getItem('igdb_client_secret') || '',
             rawg: localStorage.getItem('rawg_key') || ''
         });
 
         document.getElementById('set-url').value = getSettings().url;
         document.getElementById('set-token').value = getSettings().token;
         document.getElementById('set-steamgrid').value = getSettings().steamgrid;
+        document.getElementById('set-igdb-id').value = getSettings().igdbId;
+        document.getElementById('set-igdb-secret').value = getSettings().igdbSecret;
         document.getElementById('set-rawg').value = getSettings().rawg;
 
         function saveSettings() {
             localStorage.setItem('gs_url', document.getElementById('set-url').value.trim());
             localStorage.setItem('gs_token', document.getElementById('set-token').value.trim());
             localStorage.setItem('steamgrid_key', document.getElementById('set-steamgrid').value.trim());
+            localStorage.setItem('igdb_client_id', document.getElementById('set-igdb-id').value.trim());
+            localStorage.setItem('igdb_client_secret', document.getElementById('set-igdb-secret').value.trim());
             localStorage.setItem('rawg_key', document.getElementById('set-rawg').value.trim());
             document.getElementById('modal-settings').style.display = 'none';
             loadData(true);
         }
 
-        // Observer Lazy Loading (Capas SteamGrid)
+        // ===== Pesquisa =====
+        function onSearchInput() {
+            searchTerm = document.getElementById('search-input').value.trim().toLowerCase();
+            document.getElementById('search-clear').style.display = searchTerm ? 'block' : 'none';
+            renderGrid();
+        }
+        function clearSearch() {
+            searchTerm = '';
+            document.getElementById('search-input').value = '';
+            document.getElementById('search-clear').style.display = 'none';
+            renderGrid();
+        }
+
+        // Observer Lazy Loading (Capas)
         const imageObserver = new IntersectionObserver((entries, observer) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
@@ -234,7 +283,7 @@ const getSettings = () => ({
         }, { rootMargin: '100px 0px', threshold: 0.1 });
 
         async function loadGameCover(gameName, imgElement) {
-            const { url, token, steamgrid, rawg } = getSettings();
+            const { url, token, steamgrid, igdbId, igdbSecret, rawg } = getSettings();
             if(!url || !token) return;
             
             if(coverCache[gameName]) { 
@@ -242,8 +291,8 @@ const getSettings = () => ({
                 return; 
             }
 
-            // Se não tiver nenhuma das duas chaves, nem tenta buscar
-            if(!steamgrid && !rawg) return;
+            // Se não tiver nenhuma chave configurada, nem tenta buscar
+            if(!steamgrid && !rawg && !(igdbId && igdbSecret)) return;
 
             try {
                 const res = await fetch(url, {
@@ -252,6 +301,8 @@ const getSettings = () => ({
                         action: 'GET_COVER',
                         token: token,
                         steamgridKey: steamgrid,
+                        igdbClientId: igdbId,
+                        igdbClientSecret: igdbSecret,
                         rawgKey: rawg,
                         gameName: gameName
                     })
@@ -300,15 +351,73 @@ const getSettings = () => ({
             restoreDropado: (row) => sendApiAction({ action: 'EDIT_OR_MOVE', sheetName: 'Dropados', row, col: 4, value: 'TRUE' })
         };
 
-        function openEditInterest(row) {
-            document.getElementById('edit-row').value = row;
-            document.getElementById('modal-edit-int').style.display = 'flex';
+        // Mapa de colunas por aba, para edição de nome/plataforma/interesse.
+        // Ajuste os números de coluna aqui caso sua planilha use uma ordem diferente.
+        const SheetColumns = {
+            backlog:     { sheetName: 'Lista de Jogos',     nome: 1, plataforma: 2, interesse: 3 },
+            concluidos:  { sheetName: 'Jogos Concluídos',   nome: 1, plataforma: 2, interesse: null },
+            platinando:  { sheetName: 'Jogos Concluídos',   nome: 7, plataforma: 8, interesse: null },
+            dropados:    { sheetName: 'Dropados',           nome: 1, plataforma: 2, interesse: null }
+        };
+
+        let editingGame = null; // guarda o jogo original aberto no modal de edição
+
+        function openEditGame(game) {
+            editingGame = game;
+            document.getElementById('edit-row').value = game.row;
+            document.getElementById('edit-nome').value = game.nome || '';
+            document.getElementById('edit-plat').value = game.plataforma || '';
+            const intSelect = document.getElementById('edit-val');
+            intSelect.value = game.interesse || 'médio';
+            const cols = SheetColumns[currentTab] || SheetColumns.backlog;
+            intSelect.parentElement.querySelector ? null : null;
+            intSelect.style.display = cols.interesse ? 'block' : 'none';
+            intSelect.previousElementSibling.style.display = cols.interesse ? 'block' : 'none';
+            document.getElementById('modal-edit-game').style.display = 'flex';
         }
-        function confirmEditInterest() {
+
+        async function confirmEditGame() {
             const row = document.getElementById('edit-row').value;
-            const val = document.getElementById('edit-val').value;
-            document.getElementById('modal-edit-int').style.display = 'none';
-            sendApiAction({ action: 'EDIT_OR_MOVE', sheetName: 'Lista de Jogos', row, col: 3, value: val });
+            const novoNome = document.getElementById('edit-nome').value.trim();
+            const novaPlat = document.getElementById('edit-plat').value.trim();
+            const novoInt = document.getElementById('edit-val').value;
+            document.getElementById('modal-edit-game').style.display = 'none';
+            if(!editingGame) return;
+
+            const cols = SheetColumns[currentTab] || SheetColumns.backlog;
+            const calls = [];
+
+            if(novoNome && novoNome !== editingGame.nome) {
+                calls.push({ action: 'EDIT_OR_MOVE', sheetName: cols.sheetName, row, col: cols.nome, value: novoNome });
+            }
+            if(novaPlat && novaPlat !== editingGame.plataforma) {
+                calls.push({ action: 'EDIT_OR_MOVE', sheetName: cols.sheetName, row, col: cols.plataforma, value: novaPlat });
+            }
+            if(cols.interesse && novoInt !== editingGame.interesse) {
+                calls.push({ action: 'EDIT_OR_MOVE', sheetName: cols.sheetName, row, col: cols.interesse, value: novoInt });
+            }
+
+            editingGame = null;
+            if(calls.length === 0) return;
+
+            // Envia as mudanças em sequência para não sobrecarregar o Apps Script
+            const { url, token } = getSettings();
+            if(!url || !token) return alert("Configure a URL e o Token primeiro.");
+            const loader = document.getElementById('loader');
+            loader.innerText = 'Atualizando planilha...';
+            loader.style.display = 'block';
+            try {
+                for(const payload of calls) {
+                    payload.token = token;
+                    const res = await fetch(url, { method: 'POST', body: JSON.stringify(payload) });
+                    const data = await res.json();
+                    if(!data.success) { alert("Erro: " + data.message); break; }
+                }
+            } catch(e) {
+                alert("Falha na requisição. Verifique sua conexão.");
+            }
+            await loadData(true);
+            loader.style.display = 'none';
         }
 
         async function fetchTrophiesGlobal() {
@@ -422,10 +531,15 @@ const getSettings = () => ({
         function renderGrid() {
             const grid = document.getElementById('games-grid');
             grid.innerHTML = '';
-            const list = gamesData[currentTab] || [];
+            let list = gamesData[currentTab] || [];
+
+            if(searchTerm) {
+                list = list.filter(g => (g.nome || '').toLowerCase().includes(searchTerm));
+            }
 
             if(list.length === 0) {
-                grid.innerHTML = '<div style="color:var(--text-muted); grid-column: 1/-1; padding: 20px 0; font-size:13px;">Lista vazia.</div>';
+                const msg = searchTerm ? 'Nenhum jogo encontrado.' : 'Lista vazia.';
+                grid.innerHTML = `<div style="color:var(--text-muted); grid-column: 1/-1; padding: 20px 0; font-size:13px;">${msg}</div>`;
                 return;
             }
 
@@ -466,7 +580,6 @@ const getSettings = () => ({
                         <div class="card-actions">
                             <div class="action-btn" onclick="Actions.toConcluido(${game.row})">${Icons.check} Concluir</div>
                             <div class="action-btn" onclick="Actions.toDropado(${game.row})" style="color: var(--danger); border-color: #442222;">${Icons.x} Dropar</div>
-                            <div class="action-btn full" style="grid-column: 1/-1" onclick="openEditInterest(${game.row})">${Icons.edit} Editar Nível</div>
                         </div>
                     `;
                 } else if(currentTab === 'concluidos') {
@@ -495,8 +608,11 @@ const getSettings = () => ({
                     ? `<div class="badge plat">${Icons.trophy} Platinado</div>`
                     : `<div class="badge">${game.plataforma}</div>`;
 
+                const gameJson = JSON.stringify(game).replace(/"/g, '&quot;');
+
                 card.innerHTML = `
                     <div class="card-img-container">
+                        <div class="edit-icon-btn" onclick='openEditGame(${gameJson})'>${Icons.edit}</div>
                         ${badgeHTML}
                         <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 3'%3E%3Crect width='2' height='3' fill='%23111'/%3E%3C/svg%3E" data-name="${game.nome}" alt="${game.nome}">
                     </div>
