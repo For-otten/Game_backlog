@@ -69,17 +69,15 @@ export class GameView {
 
     const total = Object.values(library).reduce((sum, games) => sum + games.length, 0);
     const completed = library.concluidos.length + library.platinando.length + library.platinados.length;
-    const progressValues = [...library.concluidos, ...library.platinando, ...library.platinados]
-      .map((game) => trophyPercent(game.trofeus))
-      .filter((value) => value !== null);
-    const average = progressValues.length
-      ? `${Math.round(progressValues.reduce((sum, value) => sum + value, 0) / progressValues.length)}%`
-      : '—';
+    const remaining = library.backlog.length;
+    const played = Math.max(0, total - remaining);
+    const backlogProgress = total ? Math.round((played / total) * 100) : 0;
 
     document.querySelector('#profile-games').textContent = total;
     document.querySelector('#profile-completed').textContent = completed;
     document.querySelector('#profile-platinum').textContent = library.platinados.length;
-    document.querySelector('#profile-progress').textContent = average;
+    document.querySelector('#profile-progress').textContent = `${backlogProgress}%`;
+    document.querySelector('#profile-progress-detail').textContent = `${played} jogados · ${remaining} no backlog`;
   }
 
   renderCounts(library, total) {

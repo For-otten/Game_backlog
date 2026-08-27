@@ -1,6 +1,9 @@
 import { EMPTY_LIBRARY, GameApi, LibraryCache, SettingsStore, isWebAppUrl } from './api.js';
 import { GameView } from './ui.js';
 
+const SORT_STORAGE_KEY = 'checkpoint.sort.v1';
+const VALID_SORTS = new Set(['sheet', 'name', 'progress', 'status']);
+
 class GameBacklogApp {
   constructor() {
     this.settings = new SettingsStore();
@@ -10,7 +13,7 @@ class GameBacklogApp {
     this.library = structuredClone(EMPTY_LIBRARY);
     this.activeFilter = 'todos';
     this.search = '';
-    this.sort = 'sheet';
+    this.sort = readSortPreference();
     this.busy = false;
     this.pendingAvatar = null;
   }
@@ -44,8 +47,11 @@ class GameBacklogApp {
       this.render();
     });
 
-    document.querySelector('#sort-select').addEventListener('change', (event) => {
+    const sortSelect = document.querySelector('#sort-select');
+    sortSelect.value = this.sort;
+    sortSelect.addEventListener('change', (event) => {
       this.sort = event.target.value;
+      saveSortPreference(this.sort);
       this.render();
     });
 
@@ -229,6 +235,24 @@ class GameBacklogApp {
       this.busy = false;
       document.querySelectorAll('.button, .row-action').forEach((button) => { button.disabled = false; });
     }
+  }
+}
+
+function readSortPreference() {
+  try {
+    const saved = localStorage.getItem(SORT_STORAGE_KEY);
+    return VALID_SORTS.has(saved) ? saved : 'sheet';
+  } catch {
+    return 'sheet';
+  }
+}
+
+function saveSortPreference(sort) {
+  if (!VALID_SORTS.has(sort)) return;
+  try {
+    localStorage.setItem(SORT_STORAGE_KEY, sort);
+  } catch {
+    // Mantém a escolha durante a sessão quando o armazenamento está indisponível.
   }
 }
 
