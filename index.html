@@ -1,649 +1,115 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
-<head>
+  <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Backlog</title>
-    <style>
-        :root {
-            /* Tema Sóbrio e Profissional */
-            --bg: #0e0e0e; 
-            --card-bg: #161616; 
-            --border: #2a2a2a;
-            --text: #e0e0e0; 
-            --text-muted: #888888;
-            --primary: #3b82f6; 
-            --primary-hover: #2563eb;
-            --danger: #dc2626;
-            --success: #16a34a;
-            --plat: #d97706; /* Dourado mais sóbrio */
-            --ps: #1d4ed8; --xbox: #15803d; --nintendo: #b91c1c; --pc: #3f3f46;
-        }
-        
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0 5% 40px 5%; line-height: 1.5; }
-        
-        /* Utilitários SVG */
-        svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: text-bottom; margin-right: 4px; }
-        
-        /* Header & Dashboard */
-        header { display: flex; justify-content: space-between; align-items: center; padding: 30px 0 20px 0; border-bottom: 1px solid var(--border); margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
-        h1 { font-size: 22px; font-weight: 600; margin: 0; color: #fff; }
-        
-        .header-actions { display: flex; gap: 8px; }
-        button { background: var(--card-bg); color: var(--text); border: 1px solid var(--border); padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.15s ease; display: inline-flex; align-items: center; justify-content: center; }
-        button:hover { background: #222; border-color: #444; }
-        button.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
-        button.primary:hover { background: #ccc; }
-
-        .dashboard { display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap; }
-        .stat-card { background: transparent; border-left: 3px solid var(--border); padding: 5px 15px; flex: 1; min-width: 120px; }
-        .stat-card span { display: block; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-        .stat-card strong { font-size: 24px; font-weight: 500; color: #fff; line-height: 1.2; }
-
-        /* Tabs & Search */
-        .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 15px; margin-bottom: 25px; flex-wrap: wrap; }
-        .tabs { display: flex; gap: 10px; flex-wrap: wrap; }
-        .tab { background: transparent; border: 1px solid transparent; color: var(--text-muted); padding: 6px 12px; border-radius: 20px; cursor: pointer; font-size: 14px; transition: 0.2s; }
-        .tab:hover { color: var(--text); background: var(--card-bg); }
-        .tab.active { background: var(--card-bg); color: #fff; border-color: var(--border); }
-
-        .search-wrap { position: relative; flex: 0 1 260px; min-width: 180px; }
-        .search-wrap svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--text-muted); margin: 0; }
-        #search-input { width: 100%; box-sizing: border-box; padding: 8px 10px 8px 30px; border-radius: 20px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text); font-size: 13px; }
-        #search-input:focus { outline: none; border-color: #555; }
-        #search-clear { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; display: none; }
-        #search-clear svg { margin: 0; width: 12px; height: 12px; }
-
-        /* Grid & Cards (Flat Design) */
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
-        
-        .card { background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border); display: flex; flex-direction: column; position: relative; overflow: hidden; transition: border-color 0.2s; }
-        .card:hover { border-color: #555; }
-        
-        .card-img-container { position: relative; width: 100%; aspect-ratio: 2/3; background: #111; border-bottom: 1px solid var(--border); }
-        .card img { width: 100%; height: 100%; object-fit: cover; opacity: 0.9; transition: opacity 0.2s; }
-        .card:hover img { opacity: 1; }
-        
-        .badge { position: absolute; top: 10px; right: 10px; color: #fff; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; text-transform: uppercase; z-index: 2; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.1); }
-        .badge.plat { background: var(--plat); border-color: var(--plat); color: #000; }
-
-        .edit-icon-btn { position: absolute; top: 10px; left: 10px; z-index: 2; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.1); color: #fff; width: 26px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-        .edit-icon-btn svg { margin: 0; width: 13px; height: 13px; }
-        .edit-icon-btn:hover { background: rgba(0,0,0,0.9); }
-        
-        .card-info { padding: 14px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; gap: 10px; }
-        .card-info h3 { margin: 0; font-size: 14px; font-weight: 600; color: #fff; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        
-        .meta-text { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; margin: 0; }
-        
-        .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 6px; }
-        .dot-alto { background: #f87171; }
-        .dot-médio { background: #fbbf24; }
-        .dot-baixo { background: #9ca3af; }
-
-        /* Barras de Progresso Tidy */
-        .trophy-container { margin-top: auto; }
-        .trophy-header { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
-        .progress-bg { width: 100%; height: 4px; background: #222; border-radius: 2px; overflow: hidden; }
-        .progress-fill { height: 100%; background: var(--primary); border-radius: 2px; }
-        .progress-fill.plat { background: var(--plat); }
-        
-        /* Ações */
-        .card-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
-        .card-actions.full { grid-template-columns: 1fr; }
-        .action-btn { background: #222; border: 1px solid var(--border); color: var(--text); text-align: center; padding: 6px 0; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 500; transition: 0.15s; display: flex; align-items: center; justify-content: center; }
-        .action-btn:hover { background: #333; color: #fff; border-color: #555; }
-        .action-btn svg { width: 13px; height: 13px; margin-right: 5px; }
-
-        /* Loader Toaster */
-        #loader { display: none; position: fixed; bottom: 20px; right: 20px; background: #222; border: 1px solid var(--border); color: #fff; padding: 12px 20px; border-radius: 6px; font-size: 13px; z-index: 1000; }
-
-        /* Modais */
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; z-index: 2000; }
-        .modal-content { background: var(--card-bg); padding: 24px; border-radius: 8px; width: 320px; border: 1px solid var(--border); }
-        .modal-content h2 { margin-top: 0; font-size: 16px; font-weight: 500; color: #fff; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
-        .modal-content input, .modal-content select { width: 100%; padding: 10px; margin-bottom: 12px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg); color: var(--text); box-sizing: border-box; font-size: 13px; }
-        .modal-content input:focus, .modal-content select:focus { outline: none; border-color: #555; }
-        .modal-actions { display: flex; gap: 8px; margin-top: 10px; }
-        .modal-actions button { flex: 1; justify-content: center; }
-        .field-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; display: block; }
-    </style>
-</head>
-<body>
-
-    <header>
-        <h1>Backlog</h1>
-        <div class="header-actions">
-            <button onclick="fetchTrophiesGlobal()">
-                <svg viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.92-10.26l5.08 5.08"/></svg> Sincronizar
-            </button>
-            <button class="primary" onclick="document.getElementById('modal-add').style.display='flex'">
-                <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Adicionar
-            </button>
-            <button onclick="document.getElementById('modal-settings').style.display='flex'">
-                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Configurações
-            </button>
-        </div>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta name="description" content="Seu backlog, progresso e conquistas em uma biblioteca pessoal.">
+    <meta property="og:title" content="Checkpoint — Game Backlog">
+    <meta property="og:description" content="Seu backlog, no ponto certo.">
+    <meta property="og:image" content="./public/og.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Checkpoint — Game Backlog">
+    <meta name="twitter:description" content="Seu backlog, no ponto certo.">
+    <meta name="twitter:image" content="./public/og.png">
+    <title>Checkpoint — Game Backlog</title>
+    <link rel="stylesheet" href="./css/styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#library" aria-label="Checkpoint — início">
+        <span><strong>Checkpoint</strong><small>Biblioteca de jogos</small></span>
+      </a>
+      <div class="topbar-actions">
+        <span class="connection" id="connection-label">Não configurado</span>
+        <button class="button button--ghost" type="button" id="sync-button">Sincronizar</button>
+        <button class="button button--ghost" type="button" data-open-dialog="settings-dialog">Configurações</button>
+      </div>
     </header>
 
-    <div class="dashboard">
-        <div class="stat-card"><span>Backlog</span><strong id="stat-backlog">0</strong></div>
-        <div class="stat-card"><span>Concluídos</span><strong id="stat-completed">0</strong></div>
-        <div class="stat-card" style="border-left-color: var(--plat);"><span>Platinas</span><strong id="stat-plats">0</strong></div>
-        <div class="stat-card"><span>Dropados</span><strong id="stat-dropped">0</strong></div>
-    </div>
-
-    <div class="toolbar">
-        <div class="tabs">
-            <button class="tab active" onclick="changeTab('backlog')">Backlog</button>
-            <button class="tab" onclick="changeTab('platinando')">Platinando</button>
-            <button class="tab" onclick="changeTab('concluidos')">Concluídos</button>
-            <button class="tab" onclick="changeTab('dropados')">Dropados</button>
+    <main class="page" id="library">
+      <section class="profile-panel" aria-labelledby="profile-name">
+        <div class="profile-identity">
+          <div class="avatar" id="profile-avatar"><img id="profile-avatar-image" alt=""><span id="profile-initial">J</span></div>
+          <div>
+            <p class="eyebrow">Perfil</p>
+            <h1 id="profile-name">Jogador</h1>
+            <p id="profile-subtitle">Perfil local</p>
+          </div>
         </div>
-        <div class="search-wrap">
-            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="text" id="search-input" placeholder="Pesquisar por nome..." oninput="onSearchInput()">
-            <button id="search-clear" onclick="clearSearch()">
-                <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
+        <div class="profile-stats" aria-label="Resumo do perfil">
+          <div><strong id="profile-games">0</strong><span>Jogos</span></div>
+          <div><strong id="profile-completed">0</strong><span>Concluídos</span></div>
+          <div><strong class="platinum-value" id="profile-platinum">0</strong><span>Platinas</span></div>
+          <div><strong id="profile-progress">—</strong><span>Progresso médio</span></div>
         </div>
-    </div>
+      </section>
 
-    <div id="loader">Sincronizando...</div>
-    <div class="grid" id="games-grid"></div>
-
-    <!-- Modais -->
-    <div class="modal" id="modal-add">
-        <div class="modal-content">
-            <h2>Adicionar Jogo</h2>
-            <input type="text" id="add-nome" placeholder="Nome do jogo">
-            <input type="text" id="add-plat" placeholder="Plataforma (Ex: PS5, PC)">
-            <select id="add-int">
-                <option value="alto">Interesse: Alto</option>
-                <option value="médio">Interesse: Médio</option>
-                <option value="baixo">Interesse: Baixo</option>
-            </select>
-            <div class="modal-actions">
-                <button class="primary" onclick="addGame()">Salvar</button>
-                <button onclick="document.getElementById('modal-add').style.display='none'">Cancelar</button>
-            </div>
+      <section class="library-section" aria-labelledby="library-title">
+        <div class="library-heading">
+          <div><p class="eyebrow">Biblioteca</p><h2 id="library-title">Jogos</h2></div>
+          <button class="button button--primary" type="button" data-open-dialog="game-dialog">Adicionar jogo</button>
         </div>
-    </div>
 
-<div class="modal" id="modal-settings">
-        <div class="modal-content">
-            <h2>Configurações do App</h2>
-            <input type="text" id="set-url" placeholder="Google Apps Script URL">
-            <input type="password" id="set-token" placeholder="API Token (Sheets)">
-            <input type="password" id="set-steamgrid" placeholder="SteamGridDB Key (Primário)">
-            <input type="password" id="set-igdb-id" placeholder="IGDB Client ID">
-            <input type="password" id="set-igdb-secret" placeholder="IGDB Client Secret (Twitch)">
-            <input type="password" id="set-rawg" placeholder="RAWG API Key (Fallback)">
-            <div class="modal-actions">
-                <button class="primary" onclick="saveSettings()">Aplicar</button>
-                <button onclick="document.getElementById('modal-settings').style.display='none'">Fechar</button>
-            </div>
+        <div class="status-filters" id="status-filters" aria-label="Filtrar jogos por estado">
+          <button class="status-filter is-active" type="button" data-filter="todos">Todos <span data-filter-count="todos">0</span></button>
+          <button class="status-filter" type="button" data-filter="backlog">Backlog <span data-filter-count="backlog">0</span></button>
+          <button class="status-filter" type="button" data-filter="platinando">Platinando <span data-filter-count="platinando">0</span></button>
+          <button class="status-filter" type="button" data-filter="concluidos">Concluídos <span data-filter-count="concluidos">0</span></button>
+          <button class="status-filter" type="button" data-filter="dropados">Dropados <span data-filter-count="dropados">0</span></button>
         </div>
-    </div>
 
-    <div class="modal" id="modal-edit-game">
-        <div class="modal-content">
-            <h2>Editar Jogo</h2>
-            <input type="hidden" id="edit-row">
-            <label class="field-label">Nome</label>
-            <input type="text" id="edit-nome" placeholder="Nome do jogo">
-            <label class="field-label">Plataforma</label>
-            <input type="text" id="edit-plat" placeholder="Plataforma">
-            <label class="field-label">Interesse</label>
-            <select id="edit-val">
-                <option value="alto">Alto</option>
-                <option value="médio">Médio</option>
-                <option value="baixo">Baixo</option>
-            </select>
-            <div class="modal-actions">
-                <button class="primary" onclick="confirmEditGame()">Salvar</button>
-                <button onclick="document.getElementById('modal-edit-game').style.display='none'">Cancelar</button>
-            </div>
+        <div class="toolbar">
+          <label class="search-field"><span class="sr-only">Buscar jogo</span><input id="search-input" type="search" autocomplete="off" placeholder="Buscar na biblioteca"></label>
+          <label class="sort-field"><span>Ordenar por</span><select id="sort-select"><option value="sheet">Ordem da planilha</option><option value="name">Nome</option><option value="progress">Progresso</option><option value="status">Estado</option></select></label>
+          <p class="result-count" id="result-count" aria-live="polite">0 jogos</p>
         </div>
-    </div>
 
-<script>
-        // Estrutura base de dados
-        let gamesData = { backlog: [], concluidos: [], platinando: [], dropados: [] };
-        let currentTab = 'backlog';
-        let searchTerm = '';
-        
-        // Cache de Imagens (SteamGridDB / IGDB / RAWG)
-        let coverCache = JSON.parse(localStorage.getItem('coverCache')) || {};
+        <div class="games-list" id="games-list" aria-live="polite"></div>
+        <div class="empty-state" id="empty-state" hidden>
+          <h3 id="empty-title">Nenhum jogo nesta lista</h3>
+          <p id="empty-message">Altere o filtro ou adicione um jogo.</p>
+          <button class="button button--primary" type="button" id="empty-action">Adicionar jogo</button>
+        </div>
+      </section>
+    </main>
 
-        // Ícones SVGs Omitidos na explicação (Mantenha os que já estavam no seu código)
-        const Icons = {
-            trophy: `<svg viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>`,
-            check: `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>`,
-            x: `<svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
-            gamepad: `<svg viewBox="0 0 24 24"><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="15" y1="13" x2="15.01" y2="13"/><line x1="18" y1="11" x2="18.01" y2="11"/><rect width="20" height="12" x="2" y="6" rx="2"/></svg>`,
-            calendar: `<svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
-            edit: `<svg viewBox="0 0 24 24"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>`,
-            restore: `<svg viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>`,
-            sync: `<svg viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.92-10.26l5.08 5.08"/></svg>`
-        };
+    <dialog class="dialog" id="game-dialog" aria-labelledby="game-dialog-title">
+      <form method="dialog" class="dialog-card" id="game-form">
+        <div class="dialog-header"><div><p class="eyebrow">Biblioteca</p><h2 id="game-dialog-title">Adicionar jogo</h2></div><button class="icon-button icon-button--close" type="button" data-close-dialog aria-label="Fechar">×</button></div>
+        <input type="hidden" id="game-row"><input type="hidden" id="game-collection"><input type="hidden" id="game-original-name">
+        <label class="field"><span>Nome do jogo</span><input id="game-name" name="name" type="text" maxlength="140" required placeholder="Ex.: Hollow Knight"></label>
+        <label class="field"><span>Plataforma</span><input id="game-platform" name="platform" type="text" maxlength="60" list="platform-options" required placeholder="Ex.: PlayStation 5"><datalist id="platform-options"></datalist></label>
+        <label class="field" id="interest-field"><span>Nível de interesse</span><select id="game-interest" name="interest"><option value="Alto">Alto</option><option value="Médio" selected>Médio</option><option value="Baixo">Baixo</option></select></label>
+        <div class="dialog-actions"><button class="button button--secondary" type="button" data-close-dialog>Cancelar</button><button class="button button--primary" type="submit" id="game-submit">Adicionar jogo</button></div>
+      </form>
+    </dialog>
 
-        const getSettings = () => ({
-            url: localStorage.getItem('gs_url') || '',
-            token: localStorage.getItem('gs_token') || '',
-            steamgrid: localStorage.getItem('steamgrid_key') || '',
-            igdbId: localStorage.getItem('igdb_client_id') || '',
-            igdbSecret: localStorage.getItem('igdb_client_secret') || '',
-            rawg: localStorage.getItem('rawg_key') || ''
-        });
+    <dialog class="dialog" id="settings-dialog" aria-labelledby="settings-title">
+      <form method="dialog" class="dialog-card dialog-card--wide" id="settings-form">
+        <div class="dialog-header"><div><p class="eyebrow">Preferências</p><h2 id="settings-title">Perfil e integração</h2></div><button class="icon-button icon-button--close" type="button" data-close-dialog aria-label="Fechar">×</button></div>
+        <div class="settings-section">
+          <h3>Perfil</h3>
+          <div class="profile-settings-row">
+            <div class="avatar avatar--small" id="settings-avatar-preview"><img id="settings-avatar-image" alt="Prévia da foto"><span id="settings-avatar-initial">J</span></div>
+            <label class="button button--secondary file-button">Escolher foto<input id="settings-avatar-file" type="file" accept="image/png,image/jpeg,image/webp"></label>
+          </div>
+          <label class="field"><span>Nome de exibição</span><input id="settings-profile-name" type="text" maxlength="50" placeholder="Seu nome"></label>
+          <label class="field"><span>Descrição</span><input id="settings-profile-subtitle" type="text" maxlength="80" placeholder="Perfil local"></label>
+        </div>
+        <div class="settings-section">
+          <h3>Google Sheets</h3>
+          <p class="form-help">Use a URL publicada do Apps Script e o token gerado pelo menu <strong>Backlog</strong> na planilha.</p>
+          <label class="field"><span>URL do Google Apps Script</span><input id="settings-url" type="url" required placeholder="https://script.google.com/macros/s/.../exec"></label>
+          <label class="field"><span>Token da API</span><input id="settings-token" type="password" required autocomplete="off" placeholder="Seu token"></label>
+        </div>
+        <details class="advanced-settings"><summary>Provedores de capas</summary><div class="advanced-grid"><label class="field"><span>SteamGridDB Key</span><input id="settings-steamgrid" type="password" autocomplete="off"></label><label class="field"><span>RAWG API Key</span><input id="settings-rawg" type="password" autocomplete="off"></label><label class="field"><span>IGDB Client ID</span><input id="settings-igdb-id" type="password" autocomplete="off"></label><label class="field"><span>IGDB Client Secret</span><input id="settings-igdb-secret" type="password" autocomplete="off"></label></div></details>
+        <div class="dialog-actions"><button class="button button--secondary" type="button" data-close-dialog>Cancelar</button><button class="button button--primary" type="submit">Salvar e conectar</button></div>
+      </form>
+    </dialog>
 
-        document.getElementById('set-url').value = getSettings().url;
-        document.getElementById('set-token').value = getSettings().token;
-        document.getElementById('set-steamgrid').value = getSettings().steamgrid;
-        document.getElementById('set-igdb-id').value = getSettings().igdbId;
-        document.getElementById('set-igdb-secret').value = getSettings().igdbSecret;
-        document.getElementById('set-rawg').value = getSettings().rawg;
-
-        function saveSettings() {
-            localStorage.setItem('gs_url', document.getElementById('set-url').value.trim());
-            localStorage.setItem('gs_token', document.getElementById('set-token').value.trim());
-            localStorage.setItem('steamgrid_key', document.getElementById('set-steamgrid').value.trim());
-            localStorage.setItem('igdb_client_id', document.getElementById('set-igdb-id').value.trim());
-            localStorage.setItem('igdb_client_secret', document.getElementById('set-igdb-secret').value.trim());
-            localStorage.setItem('rawg_key', document.getElementById('set-rawg').value.trim());
-            document.getElementById('modal-settings').style.display = 'none';
-            loadData(true);
-        }
-
-        // ===== Pesquisa =====
-        function onSearchInput() {
-            searchTerm = document.getElementById('search-input').value.trim().toLowerCase();
-            document.getElementById('search-clear').style.display = searchTerm ? 'block' : 'none';
-            renderGrid();
-        }
-        function clearSearch() {
-            searchTerm = '';
-            document.getElementById('search-input').value = '';
-            document.getElementById('search-clear').style.display = 'none';
-            renderGrid();
-        }
-
-        // Observer Lazy Loading (Capas)
-        const imageObserver = new IntersectionObserver((entries, observer) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const img = entry.target;
-                    if (img.dataset.name && !img.dataset.loaded) {
-                        loadGameCover(img.dataset.name, img);
-                        img.dataset.loaded = "true";
-                    }
-                    observer.unobserve(img);
-                }
-            });
-        }, { rootMargin: '100px 0px', threshold: 0.1 });
-
-        async function loadGameCover(gameName, imgElement) {
-            const { url, token, steamgrid, igdbId, igdbSecret, rawg } = getSettings();
-            if(!url || !token) return;
-            
-            if(coverCache[gameName]) { 
-                imgElement.src = coverCache[gameName]; 
-                return; 
-            }
-
-            // Se não tiver nenhuma chave configurada, nem tenta buscar
-            if(!steamgrid && !rawg && !(igdbId && igdbSecret)) return;
-
-            try {
-                const res = await fetch(url, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        action: 'GET_COVER',
-                        token: token,
-                        steamgridKey: steamgrid,
-                        igdbClientId: igdbId,
-                        igdbClientSecret: igdbSecret,
-                        rawgKey: rawg,
-                        gameName: gameName
-                    })
-                });
-                
-                const data = await res.json();
-                
-                if(data.success && data.coverUrl) {
-                    coverCache[gameName] = data.coverUrl;
-                    localStorage.setItem('coverCache', JSON.stringify(coverCache));
-                    imgElement.src = data.coverUrl;
-                }
-            } catch(e) {
-                console.warn(`Erro ao buscar capa para ${gameName}.`, e);
-            }
-        }
-
-        // Funções de Ação na Planilha
-        async function sendApiAction(payload) {
-            const { url, token } = getSettings();
-            if(!url || !token) return alert("Configure a URL e o Token primeiro.");
-            
-            payload.token = token;
-            const loader = document.getElementById('loader');
-            loader.innerText = 'Atualizando planilha...';
-            loader.style.display = 'block';
-
-            try {
-                const res = await fetch(url, { method: 'POST', body: JSON.stringify(payload) });
-                const data = await res.json();
-                if(!data.success) alert("Erro: " + data.message);
-            } catch(e) { 
-                alert("Falha na requisição. Verifique sua conexão."); 
-            }
-            
-            // Após a ação, força o site a buscar os dados novos e re-renderizar
-            await loadData(true); 
-            loader.style.display = 'none';
-        }
-
-        const Actions = {
-            toConcluido: (row) => sendApiAction({ action: 'EDIT_OR_MOVE', sheetName: 'Lista de Jogos', row, col: 4, value: 'TRUE' }),
-            toDropado: (row) => sendApiAction({ action: 'EDIT_OR_MOVE', sheetName: 'Lista de Jogos', row, col: 3, value: 'dropei' }),
-            toPlatinando: (row) => sendApiAction({ action: 'EDIT_OR_MOVE', sheetName: 'Jogos Concluídos', row, col: 5, value: 'TRUE' }),
-            toPlatinado: (row) => sendApiAction({ action: 'EDIT_OR_MOVE', sheetName: 'Jogos Concluídos', row, col: 11, value: 'TRUE' }),
-            restoreDropado: (row) => sendApiAction({ action: 'EDIT_OR_MOVE', sheetName: 'Dropados', row, col: 4, value: 'TRUE' })
-        };
-
-        // Mapa de colunas por aba, para edição de nome/plataforma/interesse.
-        // Ajuste os números de coluna aqui caso sua planilha use uma ordem diferente.
-        const SheetColumns = {
-            backlog:     { sheetName: 'Lista de Jogos',     nome: 1, plataforma: 2, interesse: 3 },
-            concluidos:  { sheetName: 'Jogos Concluídos',   nome: 1, plataforma: 2, interesse: null },
-            platinando:  { sheetName: 'Jogos Concluídos',   nome: 7, plataforma: 8, interesse: null },
-            dropados:    { sheetName: 'Dropados',           nome: 1, plataforma: 2, interesse: null }
-        };
-
-        let editingGame = null; // guarda o jogo original aberto no modal de edição
-
-        // Valores de Interesse exatamente como a validação de dados da planilha espera
-        const INTERESSE_LABELS = { alto: 'Alto', médio: 'Médio', medio: 'Médio', baixo: 'Baixo' };
-        function normalizeInteresse(v) {
-            return (v || '').toString().toLowerCase().trim().replace('é', 'e');
-        }
-
-        function openEditGame(game) {
-            editingGame = game;
-            document.getElementById('edit-row').value = game.row;
-            document.getElementById('edit-nome').value = game.nome || '';
-            document.getElementById('edit-plat').value = game.plataforma || '';
-            const intSelect = document.getElementById('edit-val');
-            // Seleciona a opção certa mesmo se a planilha tiver "Alto"/"Médio"/"Baixo" com maiúscula
-            const norm = normalizeInteresse(game.interesse) || 'medio';
-            const optionMap = { alto: 'alto', medio: 'médio', baixo: 'baixo' };
-            intSelect.value = optionMap[norm] || 'médio';
-            const cols = SheetColumns[currentTab] || SheetColumns.backlog;
-            intSelect.style.display = cols.interesse ? 'block' : 'none';
-            intSelect.previousElementSibling.style.display = cols.interesse ? 'block' : 'none';
-            document.getElementById('modal-edit-game').style.display = 'flex';
-        }
-
-        async function confirmEditGame() {
-            const row = document.getElementById('edit-row').value;
-            const novoNome = document.getElementById('edit-nome').value.trim();
-            const novaPlat = document.getElementById('edit-plat').value.trim();
-            const novoIntRaw = document.getElementById('edit-val').value;
-            document.getElementById('modal-edit-game').style.display = 'none';
-            if(!editingGame) return;
-
-            const cols = SheetColumns[currentTab] || SheetColumns.backlog;
-            const calls = [];
-
-            if(novoNome && novoNome !== editingGame.nome) {
-                calls.push({ action: 'EDIT_OR_MOVE', sheetName: cols.sheetName, row, col: cols.nome, value: novoNome });
-            }
-            if(novaPlat && novaPlat !== editingGame.plataforma) {
-                calls.push({ action: 'EDIT_OR_MOVE', sheetName: cols.sheetName, row, col: cols.plataforma, value: novaPlat });
-            }
-            // Só mexe no Interesse se o usuário realmente trocou a opção (comparação
-            // ignora maiúsculas/acentos) — e envia já capitalizado como a planilha exige.
-            if(cols.interesse && normalizeInteresse(novoIntRaw) !== normalizeInteresse(editingGame.interesse)) {
-                const valorFinal = INTERESSE_LABELS[normalizeInteresse(novoIntRaw)] || novoIntRaw;
-                calls.push({ action: 'EDIT_OR_MOVE', sheetName: cols.sheetName, row, col: cols.interesse, value: valorFinal });
-            }
-
-            editingGame = null;
-            if(calls.length === 0) return;
-
-            // Envia as mudanças em sequência para não sobrecarregar o Apps Script
-            const { url, token } = getSettings();
-            if(!url || !token) return alert("Configure a URL e o Token primeiro.");
-            const loader = document.getElementById('loader');
-            loader.innerText = 'Atualizando planilha...';
-            loader.style.display = 'block';
-            try {
-                for(const payload of calls) {
-                    payload.token = token;
-                    const res = await fetch(url, { method: 'POST', body: JSON.stringify(payload) });
-                    const data = await res.json();
-                    if(!data.success) { alert("Erro: " + data.message); break; }
-                }
-            } catch(e) {
-                alert("Falha na requisição. Verifique sua conexão.");
-            }
-            await loadData(true);
-            loader.style.display = 'none';
-        }
-
-        async function fetchTrophiesGlobal() {
-            if(confirm("Buscar troféus mais recentes nas APIs (Steam/Xbox)? Isso fará uma busca profunda.")) {
-                await sendApiAction({ action: 'FETCH_TROPHIES' });
-            }
-        }
-
-        async function addGame() {
-            const nome = document.getElementById('add-nome').value;
-            const plataforma = document.getElementById('add-plat').value;
-            const interesse = document.getElementById('add-int').value;
-            if(!nome || !plataforma) return;
-            
-            document.getElementById('modal-add').style.display = 'none';
-            document.getElementById('add-nome').value = ''; 
-            document.getElementById('add-plat').value = '';
-            
-            await sendApiAction({ action: 'ADD_GAME', nome, plataforma, interesse });
-        }
-
-        // Helpers
-        function isPlatinum(game) {
-            if (game.isPlatinado === true) return true;
-            if (game.trofeus && (game.trofeus === '100%' || game.trofeus.startsWith('100.00'))) return true;
-            return false;
-        }
-
-        function formatDate(dateStr) {
-            if(!dateStr) return '';
-            const d = new Date(dateStr);
-            if(isNaN(d.getTime())) return dateStr.split(' ')[0];
-            return d.toLocaleDateString('pt-BR');
-        }
-
-        // ==========================================
-        // O CORAÇÃO DO CACHE INTELIGENTE (SWR)
-        // ==========================================
-        async function loadData(forceSync = false) {
-            const { url } = getSettings();
-            if (!url) return;
-
-            const loader = document.getElementById('loader');
-            const cachedString = localStorage.getItem('gs_cached_data');
-
-            // 1. CARREGAMENTO IMEDIATO: Lê o Cache local e renderiza na hora (0 loading screen)
-            if (cachedString) {
-                try {
-                    gamesData = JSON.parse(cachedString);
-                    updateDashboard();
-                    renderGrid();
-                } catch(e) { console.warn("Cache corrompido, resetando..."); }
-            }
-
-            // 2. BUSCA EM SEGUNDO PLANO (Silenciosa se já tiver cache, Visível se não tiver)
-            if (!cachedString || forceSync) {
-                loader.innerText = 'Baixando planilha...';
-                loader.style.display = 'block';
-            } else {
-                loader.innerText = 'Sincronizando em 2º plano...';
-                loader.style.display = 'block';
-            }
-
-            try {
-                const res = await fetch(url);
-                const freshData = await res.json();
-                const freshString = JSON.stringify(freshData);
-
-                // 3. COMPARAÇÃO: Só recarrega a tela se houver novidades na planilha
-                if (freshString !== cachedString) {
-                    gamesData = freshData;
-                    localStorage.setItem('gs_cached_data', freshString); // Atualiza o cache local
-                    updateDashboard();
-                    renderGrid();
-                    console.log("Tela atualizada com dados recentes da planilha.");
-                } else {
-                    console.log("Seu cache local já está 100% atualizado com a planilha.");
-                }
-            } catch(e) { 
-                console.error("Falha ao sincronizar com o Google Sheets", e); 
-            } finally {
-                loader.style.display = 'none'; // Esconde o toaster do canto
-            }
-        }
-
-        // Tratamento anti-erro para o Dashboard (Validação garantida)
-        function updateDashboard() {
-            const backlog = gamesData.backlog || [];
-            const concluidos = gamesData.concluidos || [];
-            const platinando = gamesData.platinando || [];
-            const dropados = gamesData.dropados || [];
-
-            document.getElementById('stat-backlog').innerText = backlog.length;
-            
-            let concluidosReais = concluidos.length + platinando.filter(g => isPlatinum(g)).length;
-            document.getElementById('stat-completed').innerText = concluidosReais;
-            
-            let totalPlat = concluidos.filter(isPlatinum).length + platinando.filter(isPlatinum).length; 
-            document.getElementById('stat-plats').innerText = totalPlat;
-            
-            document.getElementById('stat-dropped').innerText = dropados.length;
-        }
-
-        function changeTab(tabName) {
-            currentTab = tabName;
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            event.target.classList.add('active');
-            renderGrid(); // Como os dados já estão no cache em RAM, trocar de aba é instantâneo
-        }
-
-        function renderGrid() {
-            const grid = document.getElementById('games-grid');
-            grid.innerHTML = '';
-            let list = gamesData[currentTab] || [];
-
-            if(searchTerm) {
-                list = list.filter(g => (g.nome || '').toLowerCase().includes(searchTerm));
-            }
-
-            if(list.length === 0) {
-                const msg = searchTerm ? 'Nenhum jogo encontrado.' : 'Lista vazia.';
-                grid.innerHTML = `<div style="color:var(--text-muted); grid-column: 1/-1; padding: 20px 0; font-size:13px;">${msg}</div>`;
-                return;
-            }
-
-            list.forEach(game => {
-                const card = document.createElement('div');
-                card.className = 'card';
-                
-                const platStatus = isPlatinum(game);
-                let dateHTML = game.data ? `<p class="meta-text">${Icons.calendar} ${formatDate(game.data)}</p>` : '';
-                
-                let intHTML = '';
-                if (game.interesse) {
-                    let dotClass = 'dot-' + game.interesse.toLowerCase().replace('é', 'e');
-                    intHTML = `<p class="meta-text"><span class="dot ${dotClass}"></span> Interesse ${game.interesse.charAt(0).toUpperCase() + game.interesse.slice(1)}</p>`;
-                }
-
-                let trophyHTML = '';
-                if (game.trofeus && game.trofeus !== 'Não vinculado') {
-                    let percent = parseFloat(game.trofeus) || 0;
-                    trophyHTML = `
-                        <div class="trophy-container">
-                            <div class="trophy-header">
-                                <span>Troféus</span>
-                                <span>${game.trofeus}</span>
-                            </div>
-                            <div class="progress-bg">
-                                <div class="progress-fill ${platStatus ? 'plat' : ''}" style="width: ${percent}%;"></div>
-                            </div>
-                        </div>
-                    `;
-                } else if (game.trofeus === 'Não vinculado') {
-                    trophyHTML = `<p class="meta-text" style="margin-top:auto; font-size:11px;">Sem vínculo</p>`;
-                }
-
-                let actionsHTML = '';
-                if(currentTab === 'backlog') {
-                    actionsHTML = `
-                        <div class="card-actions">
-                            <div class="action-btn" onclick="Actions.toConcluido(${game.row})">${Icons.check} Concluir</div>
-                            <div class="action-btn" onclick="Actions.toDropado(${game.row})" style="color: var(--danger); border-color: #442222;">${Icons.x} Dropar</div>
-                        </div>
-                    `;
-                } else if(currentTab === 'concluidos') {
-                    if (!platStatus) {
-                        actionsHTML = `
-                            <div class="card-actions full">
-                                <div class="action-btn" onclick="Actions.toPlatinando(${game.row})">${Icons.gamepad} Iniciar Platina</div>
-                            </div>
-                        `;
-                    }
-                } else if(currentTab === 'platinando') {
-                    actionsHTML = `
-                        <div class="card-actions full">
-                            <div class="action-btn" onclick="Actions.toPlatinado(${game.row})" style="color: var(--plat); border-color: #4a3300;">${Icons.trophy} Marcar Platinado</div>
-                        </div>
-                    `;
-                } else if(currentTab === 'dropados') {
-                    actionsHTML = `
-                        <div class="card-actions full">
-                            <div class="action-btn" onclick="Actions.restoreDropado(${game.row})">${Icons.restore} Restaurar</div>
-                        </div>
-                    `;
-                }
-
-                let badgeHTML = platStatus 
-                    ? `<div class="badge plat">${Icons.trophy} Platinado</div>`
-                    : `<div class="badge">${game.plataforma}</div>`;
-
-                const gameJson = JSON.stringify(game).replace(/"/g, '&quot;');
-
-                card.innerHTML = `
-                    <div class="card-img-container">
-                        <div class="edit-icon-btn" onclick='openEditGame(${gameJson})'>${Icons.edit}</div>
-                        ${badgeHTML}
-                        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 3'%3E%3Crect width='2' height='3' fill='%23111'/%3E%3C/svg%3E" data-name="${game.nome}" alt="${game.nome}">
-                    </div>
-                    <div class="card-info">
-                        <h3>${game.nome}</h3>
-                        ${intHTML}
-                        ${dateHTML}
-                        ${trophyHTML}
-                        ${actionsHTML}
-                    </div>
-                `;
-                
-                grid.appendChild(card);
-                imageObserver.observe(card.querySelector('img'));
-            });
-        }
-
-        // Inicialização automática
-        if(getSettings().url) loadData();
-
-    </script>
-</body>
+    <dialog class="dialog dialog--confirm" id="confirm-dialog" aria-labelledby="confirm-title"><form method="dialog" class="dialog-card"><h2 id="confirm-title">Confirmar ação</h2><p id="confirm-message"></p><div class="dialog-actions"><button class="button button--secondary" value="cancel">Cancelar</button><button class="button button--primary" value="confirm">Confirmar</button></div></form></dialog>
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden><span class="toast-spinner" id="toast-spinner" aria-hidden="true"></span><span id="toast-message"></span></div>
+    <script type="module" src="./js/app.js"></script>
+  </body>
 </html>

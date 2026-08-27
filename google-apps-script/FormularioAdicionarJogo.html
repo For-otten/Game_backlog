@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <style>
+      :root { color-scheme: light; font-family: Arial, sans-serif; color: #202124; }
+      body { margin: 0; padding: 24px; background: #fff; }
+      form { display: grid; gap: 16px; }
+      label { display: grid; gap: 6px; font-size: 12px; font-weight: 700; }
+      input, select { width: 100%; height: 42px; padding: 0 11px; box-sizing: border-box; border: 1px solid #dadce0; border-radius: 7px; background: #fff; font-size: 14px; }
+      input:focus, select:focus { border-color: #1a73e8; outline: 2px solid #e8f0fe; }
+      #new-platform-field[hidden] { display: none; }
+      .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+      button { min-height: 40px; padding: 0 16px; border: 1px solid #dadce0; border-radius: 7px; background: #fff; font-weight: 700; cursor: pointer; }
+      button[type="submit"] { border-color: #1a73e8; background: #1a73e8; color: #fff; }
+      button:disabled { opacity: .55; cursor: wait; }
+      #message { min-height: 18px; margin: 0; color: #5f6368; font-size: 12px; }
+      #message.error { color: #b3261e; }
+    </style>
+  </head>
+  <body>
+    <form id="game-form">
+      <label>Nome do jogo<input id="name" type="text" required placeholder="Ex.: Hollow Knight"></label>
+      <label>Plataforma
+        <select id="platform" required><option value="">Carregando plataformas…</option></select>
+      </label>
+      <label id="new-platform-field" hidden>Nova plataforma<input id="new-platform" type="text" placeholder="Ex.: PlayStation 5"></label>
+      <label>Nível de interesse
+        <select id="interest"><option value="Alto">Alto</option><option value="Médio" selected>Médio</option><option value="Baixo">Baixo</option></select>
+      </label>
+      <p id="message" aria-live="polite"></p>
+      <div class="actions"><button type="button" id="cancel">Cancelar</button><button type="submit" id="submit">Adicionar jogo</button></div>
+    </form>
+
+    <script>
+      var platformSelect = document.getElementById('platform');
+      var newPlatformField = document.getElementById('new-platform-field');
+      var message = document.getElementById('message');
+
+      google.script.run
+        .withSuccessHandler(function (platforms) {
+          platformSelect.innerHTML = '<option value="">Selecione…</option>';
+          platforms.forEach(function (platform) {
+            var option = document.createElement('option');
+            option.value = platform;
+            option.textContent = platform;
+            platformSelect.appendChild(option);
+          });
+          var custom = document.createElement('option');
+          custom.value = '__new__';
+          custom.textContent = '+ Nova plataforma…';
+          platformSelect.appendChild(custom);
+        })
+        .withFailureHandler(showError)
+        .getPlataformasExistentes();
+
+      platformSelect.addEventListener('change', function () {
+        var custom = platformSelect.value === '__new__';
+        newPlatformField.hidden = !custom;
+        document.getElementById('new-platform').required = custom;
+      });
+
+      document.getElementById('cancel').addEventListener('click', function () { google.script.host.close(); });
+      document.getElementById('game-form').addEventListener('submit', function (event) {
+        event.preventDefault();
+        var button = document.getElementById('submit');
+        var platform = platformSelect.value === '__new__'
+          ? document.getElementById('new-platform').value.trim()
+          : platformSelect.value;
+
+        button.disabled = true;
+        message.className = '';
+        message.textContent = 'Salvando…';
+        google.script.run
+          .withSuccessHandler(function (result) {
+            message.textContent = result;
+            setTimeout(function () { google.script.host.close(); }, 700);
+          })
+          .withFailureHandler(function (error) {
+            button.disabled = false;
+            showError(error);
+          })
+          .adicionarJogoBacklog({
+            nome: document.getElementById('name').value.trim(),
+            plataforma: platform,
+            nivel: document.getElementById('interest').value
+          });
+      });
+
+      function showError(error) {
+        message.className = 'error';
+        message.textContent = error && error.message ? error.message : String(error);
+      }
+    </script>
+  </body>
+</html>
