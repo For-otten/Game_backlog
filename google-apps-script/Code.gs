@@ -234,6 +234,7 @@ function onOpen() {
     .createMenu('Backlog')
     .addItem('Adicionar jogo', 'showAddGameForm')
     .addItem('Gerar/Ver token da API', 'gerarTokenAPI')
+    .addItem('Regenerar token da API', 'regenerarTokenAPI')
     .addToUi();
 }
 
@@ -835,6 +836,20 @@ function gerarTokenAPI() {
     props.setProperty('api_token', token);
   }
   SpreadsheetApp.getUi().alert('Seu Token da API é:\n\n' + token);
+}
+
+function regenerarTokenAPI() {
+  var ui = SpreadsheetApp.getUi();
+  var answer = ui.alert(
+    'Regenerar token da API',
+    'O token atual deixará de funcionar imediatamente. Deseja continuar?',
+    ui.ButtonSet.YES_NO
+  );
+  if (answer !== ui.Button.YES) return;
+
+  var token = Utilities.getUuid().replace(/-/g, '');
+  PropertiesService.getDocumentProperties().setProperty('api_token', token);
+  ui.alert('Novo token da API:\n\n' + token + '\n\nAtualize o token no site.');
 }
 
 // Retorna todos os dados mapeados exatamente como estão na planilha

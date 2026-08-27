@@ -7,12 +7,13 @@
     <meta name="description" content="Seu backlog, progresso e conquistas em uma biblioteca pessoal.">
     <meta property="og:title" content="Checkpoint — Game Backlog">
     <meta property="og:description" content="Seu backlog, no ponto certo.">
-    <meta property="og:image" content="./public/og.png">
+    <meta property="og:image" content="https://checkpoint-game-backlog.dev-vicentini.chatgpt.site/public/og.png">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Checkpoint — Game Backlog">
     <meta name="twitter:description" content="Seu backlog, no ponto certo.">
-    <meta name="twitter:image" content="./public/og.png">
+    <meta name="twitter:image" content="https://checkpoint-game-backlog.dev-vicentini.chatgpt.site/public/og.png">
     <title>Checkpoint — Game Backlog</title>
+    <link rel="icon" href="data:,">
     <link rel="stylesheet" href="./css/styles.css">
   </head>
   <body>
@@ -99,8 +100,8 @@
         </div>
         <div class="settings-section">
           <h3>Google Sheets</h3>
-          <p class="form-help">Use a URL publicada do Apps Script e o token gerado pelo menu <strong>Backlog</strong> na planilha.</p>
-          <label class="field"><span>URL do Google Apps Script</span><input id="settings-url" type="url" required placeholder="https://script.google.com/macros/s/.../exec"></label>
+          <p class="form-help">Informe a URL do app da Web. Ela começa com <strong>script.google.com/macros/s/</strong> e termina em <strong>/exec</strong>. A URL de edição da planilha não é aceita.</p>
+          <label class="field"><span>URL do app da Web (/exec)</span><input id="settings-url" type="url" required placeholder="https://script.google.com/macros/s/.../exec"></label>
           <label class="field"><span>Token da API</span><input id="settings-token" type="password" required autocomplete="off" placeholder="Seu token"></label>
         </div>
         <details class="advanced-settings"><summary>Provedores de capas</summary><div class="advanced-grid"><label class="field"><span>SteamGridDB Key</span><input id="settings-steamgrid" type="password" autocomplete="off"></label><label class="field"><span>RAWG API Key</span><input id="settings-rawg" type="password" autocomplete="off"></label><label class="field"><span>IGDB Client ID</span><input id="settings-igdb-id" type="password" autocomplete="off"></label><label class="field"><span>IGDB Client Secret</span><input id="settings-igdb-secret" type="password" autocomplete="off"></label></div></details>

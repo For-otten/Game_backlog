@@ -38,6 +38,9 @@ function doPost(e) {
     var result;
 
     switch (payload.action) {
+      case 'GET_LIBRARY':
+        result = { message: 'Biblioteca carregada.' };
+        break;
       case 'ADD_GAME':
         result = addBacklogGame_(payload);
         break;

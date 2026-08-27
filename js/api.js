@@ -12,6 +12,10 @@ export const EMPTY_LIBRARY = Object.freeze({
   dropados: []
 });
 
+export function isWebAppUrl(value) {
+  return /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec(?:\?.*)?$/i.test(String(value || '').trim());
+}
+
 function readJson(key, fallback) {
   try {
     return JSON.parse(localStorage.getItem(key)) ?? fallback;
@@ -22,7 +26,7 @@ function readJson(key, fallback) {
 
 export class SettingsStore {
   get() {
-    return {
+    const defaults = {
       url: '',
       token: '',
       profileName: 'Jogador',
@@ -31,9 +35,22 @@ export class SettingsStore {
       steamgrid: '',
       rawg: '',
       igdbId: '',
-      igdbSecret: '',
-      ...readJson(STORAGE_KEYS.settings, {})
+      igdbSecret: ''
     };
+    const current = readJson(STORAGE_KEYS.settings, null);
+    if (current) return { ...defaults, ...current };
+
+    const legacy = {
+      url: localStorage.getItem('gs_url') || '',
+      token: localStorage.getItem('gs_token') || '',
+      steamgrid: localStorage.getItem('steamgrid_key') || '',
+      rawg: localStorage.getItem('rawg_key') || '',
+      igdbId: localStorage.getItem('igdb_client_id') || '',
+      igdbSecret: localStorage.getItem('igdb_client_secret') || ''
+    };
+    const migrated = { ...defaults, ...legacy };
+    if (Object.values(legacy).some(Boolean)) this.save(migrated);
+    return migrated;
   }
 
   save(settings) {
@@ -41,18 +58,28 @@ export class SettingsStore {
       Object.entries(settings).map(([key, value]) => [key, String(value || '').trim()])
     );
     localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(normalized));
+    localStorage.setItem('gs_url', normalized.url || '');
+    localStorage.setItem('gs_token', normalized.token || '');
+    localStorage.setItem('steamgrid_key', normalized.steamgrid || '');
+    localStorage.setItem('rawg_key', normalized.rawg || '');
+    localStorage.setItem('igdb_client_id', normalized.igdbId || '');
+    localStorage.setItem('igdb_client_secret', normalized.igdbSecret || '');
     return normalized;
   }
 
   isConfigured() {
     const { url, token } = this.get();
-    return Boolean(url && token);
+    return Boolean(isWebAppUrl(url) && token);
   }
 }
 
 export class LibraryCache {
   read() {
-    return normalizeLibrary(readJson(STORAGE_KEYS.data, EMPTY_LIBRARY));
+    const current = readJson(STORAGE_KEYS.data, null);
+    if (current) return normalizeLibrary(current);
+    const legacy = readJson('gs_cached_data', null);
+    if (legacy) return this.write(legacy);
+    return normalizeLibrary(EMPTY_LIBRARY);
   }
 
   write(data) {
@@ -65,15 +92,14 @@ export class LibraryCache {
 export class GameApi {
   constructor(settingsStore) {
     this.settingsStore = settingsStore;
-    this.coverCache = readJson(STORAGE_KEYS.covers, {});
+    this.coverCache = readJson(STORAGE_KEYS.covers, null) || readJson('coverCache', {});
+    if (Object.keys(this.coverCache).length) {
+      try { localStorage.setItem(STORAGE_KEYS.covers, JSON.stringify(this.coverCache)); } catch {}
+    }
   }
 
   async getLibrary() {
-    const { url, token } = this.requireConnection();
-    const endpoint = new URL(url);
-    endpoint.searchParams.set('token', token);
-    endpoint.searchParams.set('_', Date.now().toString());
-    return this.parse(await fetch(endpoint, { cache: 'no-store' }));
+    return this.post({ action: 'GET_LIBRARY' });
   }
 
   addGame(game) {
@@ -120,10 +146,12 @@ export class GameApi {
 
   async post(payload) {
     const { url, token } = this.requireConnection();
-    const response = await fetch(url, {
-      method: 'POST',
-      body: JSON.stringify({ ...payload, token })
-    });
+    let response;
+    try {
+      response = await fetch(url, { method: 'POST', body: JSON.stringify({ ...payload, token }) });
+    } catch {
+      throw new Error('Não foi possível acessar o Apps Script. Confirme a URL /exec e publique o app da Web para acesso por qualquer pessoa.');
+    }
     return this.parse(response);
   }
 
@@ -141,7 +169,8 @@ export class GameApi {
 
   requireConnection() {
     const settings = this.settingsStore.get();
-    if (!settings.url || !settings.token) throw new Error('Conecte o site à planilha nas configurações.');
+    if (!isWebAppUrl(settings.url)) throw new Error('Informe a URL do app da Web do Apps Script terminada em /exec.');
+    if (!settings.token) throw new Error('Informe o token da API nas configurações.');
     return settings;
   }
 }

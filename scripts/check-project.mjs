@@ -11,6 +11,27 @@ for (const id of ['status-filters', 'games-list', 'game-form', 'settings-form', 
 assert.doesNotMatch(html, /\sonclick=/i, 'A interface não deve voltar a usar handlers inline.');
 assert.match(html, /type="module" src="\.\/js\/app\.js"/, 'Entrada JavaScript modular ausente.');
 
+const stored = new Map([
+  ['gs_url', 'https://script.google.com/macros/s/deployment-id/exec'],
+  ['gs_token', 'legacy-token'],
+  ['steamgrid_key', 'legacy-cover-key'],
+  ['gs_cached_data', JSON.stringify({ backlog: [{ nome: 'Migrado', row: 2 }] })]
+]);
+globalThis.localStorage = {
+  getItem: (key) => stored.get(key) ?? null,
+  setItem: (key, value) => stored.set(key, String(value))
+};
+const { LibraryCache, SettingsStore, isWebAppUrl } = await import('../js/api.js?project-check');
+const migratedSettings = new SettingsStore().get();
+assert.equal(migratedSettings.url, 'https://script.google.com/macros/s/deployment-id/exec');
+assert.equal(migratedSettings.token, 'legacy-token');
+assert.equal(migratedSettings.steamgrid, 'legacy-cover-key');
+assert.ok(stored.has('checkpoint.settings.v2'), 'As configurações antigas devem ser migradas automaticamente.');
+assert.equal(new LibraryCache().read().backlog[0].nome, 'Migrado');
+assert.equal(isWebAppUrl('https://docs.google.com/spreadsheets/d/test/edit'), false);
+assert.equal(isWebAppUrl('https://script.google.com/macros/s/id/exec'), true);
+delete globalThis.localStorage;
+
 class FakeRange {
   constructor(sheet, row, column, rows, columns) {
     this.sheet = sheet;

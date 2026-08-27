@@ -1,4 +1,4 @@
-import { EMPTY_LIBRARY, GameApi, LibraryCache, SettingsStore } from './api.js';
+import { EMPTY_LIBRARY, GameApi, LibraryCache, SettingsStore, isWebAppUrl } from './api.js';
 import { GameView } from './ui.js';
 
 class GameBacklogApp {
@@ -24,7 +24,10 @@ class GameBacklogApp {
       this.view.setConnection('online', 'Conectando');
       this.refresh({ silent: true });
     } else {
-      this.view.setConnection('idle', 'Não configurado');
+      const saved = this.settings.get();
+      const invalidUrl = Boolean(saved.url && !isWebAppUrl(saved.url));
+      this.view.setConnection(invalidUrl ? 'error' : 'idle', invalidUrl ? 'URL inválida' : 'Não configurado');
+      if (invalidUrl) setTimeout(() => this.openSettings(), 0);
     }
   }
 
@@ -68,6 +71,7 @@ class GameBacklogApp {
     document.querySelector('#settings-form').addEventListener('submit', (event) => this.saveSettings(event));
     document.querySelector('#sync-button').addEventListener('click', () => this.syncTrophies());
     document.querySelector('#settings-avatar-file').addEventListener('change', (event) => this.previewSelectedAvatar(event));
+    document.querySelector('#settings-url').addEventListener('input', (event) => event.target.setCustomValidity(''));
     document.querySelector('#settings-profile-name').addEventListener('input', (event) => {
       const source = this.pendingAvatar ?? this.settings.get().avatar;
       this.view.previewAvatar(source, event.target.value);
@@ -123,12 +127,20 @@ class GameBacklogApp {
   async saveSettings(event) {
     event.preventDefault();
     const previous = this.settings.get();
+    const urlField = document.querySelector('#settings-url');
+    const scriptUrl = urlField.value.trim();
+    if (!isWebAppUrl(scriptUrl)) {
+      urlField.setCustomValidity('Use a URL de implantação do Apps Script terminada em /exec, não a URL da planilha.');
+      urlField.reportValidity();
+      urlField.focus();
+      return;
+    }
     this.settings.save({
       ...previous,
       profileName: document.querySelector('#settings-profile-name').value.trim() || 'Jogador',
       profileSubtitle: document.querySelector('#settings-profile-subtitle').value.trim() || 'Perfil local',
       avatar: this.pendingAvatar ?? previous.avatar ?? '',
-      url: document.querySelector('#settings-url').value,
+      url: scriptUrl,
       token: document.querySelector('#settings-token').value,
       steamgrid: document.querySelector('#settings-steamgrid').value,
       rawg: document.querySelector('#settings-rawg').value,

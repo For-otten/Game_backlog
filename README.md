@@ -21,7 +21,7 @@ google-apps-script/FormularioAdicionarJogo.html
 1. Abra **Extensões → Apps Script** na planilha.
 2. Substitua o conteúdo do projeto pelos três arquivos da pasta `google-apps-script`. Crie cada arquivo com o mesmo nome.
 3. Salve e execute `gerarTokenAPI` uma vez, ou use **Backlog → Gerar/Ver token da API**.
-4. Em **Implantar → Gerenciar implantações**, publique uma **nova versão** do app da Web. Execute como você e mantenha o nível de acesso compatível com o site.
+4. Em **Implantar → Gerenciar implantações**, publique uma **nova versão** do app da Web. Execute como você e selecione **Qualquer pessoa** em “Quem pode acessar”. O token protege as operações da API.
 5. Copie a URL terminada em `/exec` e informe-a, junto com o token, em **Configurar** no site.
 
 O backend pressupõe estes pontos de início, iguais aos códigos recebidos:
@@ -56,3 +56,5 @@ Abra `http://127.0.0.1:4173`. Não abra `index.html` diretamente pelo explorador
 ## Segurança
 
 Não versione tokens nem chaves de provedores. As configurações digitadas no site ficam no armazenamento local do navegador. Para uso público ou compartilhado, o ideal é mover também as chaves de capas para as propriedades do Apps Script.
+
+Se um token aparecer em logs, prints ou mensagens, use **Backlog → Regenerar token da API** e atualize o valor no site.
