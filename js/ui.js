@@ -53,6 +53,7 @@ export class GameView {
     const sorted = [...games];
     if (sort === 'name') sorted.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
     if (sort === 'progress') sorted.sort((a, b) => (trophyPercent(b.trofeus) ?? -1) - (trophyPercent(a.trofeus) ?? -1));
+    if (sort === 'date') sorted.sort((a, b) => dateTimestamp(b.data) - dateTimestamp(a.data));
     if (sort === 'status') {
       const order = { backlog: 0, platinando: 1, concluidos: 2, platinados: 3, dropados: 4 };
       sorted.sort((a, b) => order[a.collection] - order[b.collection] || a.nome.localeCompare(b.nome, 'pt-BR'));
@@ -296,6 +297,14 @@ function trophyPercent(value) {
 }
 
 function formatPercent(value) { return Number.isInteger(value) ? value : value.toFixed(1).replace('.', ','); }
+
+function dateTimestamp(value) {
+  if (!value) return 0;
+  const brazilian = String(value).match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (brazilian) return Date.UTC(Number(brazilian[3]), Number(brazilian[2]) - 1, Number(brazilian[1]));
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
 
 function formatDate(value) {
   if (!value) return '';

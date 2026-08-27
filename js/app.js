@@ -1,8 +1,16 @@
 import { EMPTY_LIBRARY, GameApi, LibraryCache, SettingsStore, isWebAppUrl } from './api.js';
 import { GameView } from './ui.js';
 
-const SORT_STORAGE_KEY = 'checkpoint.sort.v1';
-const VALID_SORTS = new Set(['sheet', 'name', 'progress', 'status']);
+const SORT_STORAGE_KEY = 'checkpoint.sort-by-filter.v1';
+const LEGACY_SORT_STORAGE_KEY = 'checkpoint.sort.v1';
+const VALID_SORTS = new Set(['sheet', 'name', 'progress', 'date', 'status']);
+const DEFAULT_SORT_BY_FILTER = {
+  todos: 'sheet',
+  backlog: 'sheet',
+  platinando: 'progress',
+  concluidos: 'progress',
+  dropados: 'date'
+};
 
 class GameBacklogApp {
   constructor() {
@@ -13,7 +21,8 @@ class GameBacklogApp {
     this.library = structuredClone(EMPTY_LIBRARY);
     this.activeFilter = 'todos';
     this.search = '';
-    this.sort = readSortPreference();
+    this.sortPreferences = readSortPreferences();
+    this.sort = sortForFilter(this.activeFilter, this.sortPreferences);
     this.busy = false;
     this.pendingAvatar = null;
   }
@@ -39,6 +48,8 @@ class GameBacklogApp {
       const button = event.target.closest('[data-filter]');
       if (!button) return;
       this.activeFilter = button.dataset.filter;
+      this.sort = sortForFilter(this.activeFilter, this.sortPreferences);
+      document.querySelector('#sort-select').value = this.sort;
       this.render();
     });
 
@@ -51,7 +62,8 @@ class GameBacklogApp {
     sortSelect.value = this.sort;
     sortSelect.addEventListener('change', (event) => {
       this.sort = event.target.value;
-      saveSortPreference(this.sort);
+      this.sortPreferences[this.activeFilter] = this.sort;
+      saveSortPreferences(this.sortPreferences);
       this.render();
     });
 
@@ -238,22 +250,30 @@ class GameBacklogApp {
   }
 }
 
-function readSortPreference() {
+function readSortPreferences() {
   try {
-    const saved = localStorage.getItem(SORT_STORAGE_KEY);
-    return VALID_SORTS.has(saved) ? saved : 'sheet';
+    const saved = JSON.parse(localStorage.getItem(SORT_STORAGE_KEY) || '{}');
+    const preferences = Object.fromEntries(
+      Object.entries(saved).filter(([filter, sort]) => filter in DEFAULT_SORT_BY_FILTER && VALID_SORTS.has(sort))
+    );
+    const legacySort = localStorage.getItem(LEGACY_SORT_STORAGE_KEY);
+    if (!preferences.todos && VALID_SORTS.has(legacySort)) preferences.todos = legacySort;
+    return preferences;
   } catch {
-    return 'sheet';
+    return {};
   }
 }
 
-function saveSortPreference(sort) {
-  if (!VALID_SORTS.has(sort)) return;
+function saveSortPreferences(preferences) {
   try {
-    localStorage.setItem(SORT_STORAGE_KEY, sort);
+    localStorage.setItem(SORT_STORAGE_KEY, JSON.stringify(preferences));
   } catch {
-    // Mantém a escolha durante a sessão quando o armazenamento está indisponível.
+    // Mantém as escolhas durante a sessão quando o armazenamento está indisponível.
   }
+}
+
+function sortForFilter(filter, preferences) {
+  return preferences[filter] || DEFAULT_SORT_BY_FILTER[filter] || 'sheet';
 }
 
 function resizeImage(file, size) {

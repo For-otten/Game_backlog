@@ -4,12 +4,19 @@ import vm from 'node:vm';
 
 const html = readFileSync('index.html', 'utf8');
 const apiSource = readFileSync('google-apps-script/Api.gs', 'utf8');
+const appSource = readFileSync('js/app.js', 'utf8');
+const uiSource = readFileSync('js/ui.js', 'utf8');
 
 for (const id of ['status-filters', 'games-list', 'game-form', 'settings-form', 'confirm-dialog', 'toast']) {
   assert.match(html, new RegExp(`id=["']${id}["']`), `Elemento #${id} ausente no HTML.`);
 }
 assert.doesNotMatch(html, /\sonclick=/i, 'A interface não deve voltar a usar handlers inline.');
 assert.match(html, /type="module" src="\.\/js\/app\.js"/, 'Entrada JavaScript modular ausente.');
+assert.match(html, /option value="date"/, 'A opção de ordenação por data está ausente.');
+assert.match(appSource, /concluidos:\s*'progress'/, 'Concluídos devem usar progresso como ordenação padrão.');
+assert.match(appSource, /backlog:\s*'sheet'/, 'Backlog deve manter a ordem da planilha por padrão.');
+assert.match(appSource, /dropados:\s*'date'/, 'Dropados devem usar data como ordenação padrão.');
+assert.match(uiSource, /sort === 'date'/, 'A ordenação por data não foi implementada.');
 
 const stored = new Map([
   ['gs_url', 'https://script.google.com/macros/s/deployment-id/exec'],
