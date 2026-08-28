@@ -20,9 +20,11 @@ google-apps-script/FormularioAdicionarJogo.html
 
 1. Abra **Extensões → Apps Script** na planilha.
 2. Substitua o conteúdo do projeto pelos três arquivos da pasta `google-apps-script`. Crie cada arquivo com o mesmo nome.
-3. Salve e execute `gerarTokenAPI` uma vez, ou use **Backlog → Gerar/Ver token da API**.
-4. Em **Implantar → Gerenciar implantações**, publique uma **nova versão** do app da Web. Execute como você e selecione **Qualquer pessoa** em “Quem pode acessar”. O token protege as operações da API.
-5. Copie a URL terminada em `/exec` e informe-a, junto com o token, em **Configurar** no site.
+3. Em **Implantar → Gerenciar implantações**, publique uma **nova versão** do app da Web. Execute como você e selecione **Qualquer pessoa** em “Quem pode acessar”. O token protege as operações da API.
+4. Recarregue a planilha e use **Backlog → Ver URL de conexão**.
+5. Cole no site a URL completa terminada em `/exec#token=...`. O site separa o token automaticamente; em um novo navegador, essa é a única informação que precisa ser digitada.
+
+Se `steamApiKey` e `steamId` já estiverem configurados nas propriedades da planilha, o site sincroniza automaticamente nome, avatar, link, nível, quantidade de jogos e horas públicas do perfil Steam. As chaves SteamGridDB, RAWG e IGDB informadas no site são gravadas nas propriedades privadas do Apps Script e reutilizadas em outros navegadores.
 
 O backend pressupõe estes pontos de início, iguais aos códigos recebidos:
 
@@ -55,6 +57,6 @@ Abra `http://127.0.0.1:4173`. Não abra `index.html` diretamente pelo explorador
 
 ## Segurança
 
-Não versione tokens nem chaves de provedores. As configurações digitadas no site ficam no armazenamento local do navegador. Para uso público ou compartilhado, o ideal é mover também as chaves de capas para as propriedades do Apps Script.
+Não versione tokens nem chaves de provedores. O token de conexão permanece no navegador; as chaves Steam, Xbox, SteamGridDB, RAWG e IGDB ficam nas propriedades privadas vinculadas à planilha e nunca são devolvidas pelo backend. A interface recebe apenas dados públicos do perfil e indicadores informando quais integrações estão configuradas.
 
 Se um token aparecer em logs, prints ou mensagens, use **Backlog → Regenerar token da API** e atualize o valor no site.

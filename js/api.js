@@ -1,7 +1,8 @@
 const STORAGE_KEYS = {
   settings: 'checkpoint.settings.v2',
   data: 'checkpoint.data.v2',
-  covers: 'checkpoint.covers.v2'
+  covers: 'checkpoint.covers.v2',
+  profile: 'checkpoint.profile.v1'
 };
 
 export const EMPTY_LIBRARY = Object.freeze({
@@ -13,7 +14,26 @@ export const EMPTY_LIBRARY = Object.freeze({
 });
 
 export function isWebAppUrl(value) {
-  return /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec(?:\?.*)?$/i.test(String(value || '').trim());
+  try {
+    const url = new URL(String(value || '').trim());
+    return url.protocol === 'https:'
+      && url.hostname === 'script.google.com'
+      && /^\/macros\/s\/[^/]+\/exec\/?$/i.test(url.pathname);
+  } catch {
+    return false;
+  }
+}
+
+export function parseConnectionUrl(value, fallbackToken = '') {
+  const raw = String(value || '').trim();
+  if (!isWebAppUrl(raw)) return { url: raw, token: String(fallbackToken || '').trim() };
+  const parsed = new URL(raw);
+  const hashParams = new URLSearchParams(parsed.hash.replace(/^#/, ''));
+  const token = hashParams.get('token') || parsed.searchParams.get('token') || fallbackToken;
+  hashParams.delete('token');
+  parsed.searchParams.delete('token');
+  parsed.hash = hashParams.toString() ? `#${hashParams}` : '';
+  return { url: parsed.toString().replace(/\/$/, ''), token: String(token || '').trim() };
 }
 
 function readJson(key, fallback) {
@@ -89,13 +109,30 @@ export class LibraryCache {
   }
 }
 
+export class ProfileCache {
+  read() {
+    return readJson(STORAGE_KEYS.profile, { profile: null, configuration: {} });
+  }
+
+  write(profile, configuration = {}) {
+    const value = { profile: profile || null, configuration: configuration || {} };
+    localStorage.setItem(STORAGE_KEYS.profile, JSON.stringify(value));
+    return value;
+  }
+}
+
 export class GameApi {
   constructor(settingsStore) {
     this.settingsStore = settingsStore;
+    this.configuration = {};
     this.coverCache = readJson(STORAGE_KEYS.covers, null) || readJson('coverCache', {});
     if (Object.keys(this.coverCache).length) {
       try { localStorage.setItem(STORAGE_KEYS.covers, JSON.stringify(this.coverCache)); } catch {}
     }
+  }
+
+  setConfiguration(configuration = {}) {
+    this.configuration = configuration || {};
   }
 
   async getLibrary() {
@@ -118,11 +155,17 @@ export class GameApi {
     return this.post({ action: 'FETCH_TROPHIES' });
   }
 
+  saveRemoteSettings(settings) {
+    return this.post({ action: 'SAVE_SETTINGS', ...settings });
+  }
+
   async getCover(gameName) {
     if (this.coverCache[gameName]) return this.coverCache[gameName];
 
     const { steamgrid, rawg, igdbId, igdbSecret } = this.settingsStore.get();
-    if (!steamgrid && !rawg && !(igdbId && igdbSecret)) return '';
+    const hasLocalProvider = Boolean(steamgrid || rawg || (igdbId && igdbSecret));
+    const hasRemoteProvider = Boolean(this.configuration.steamgrid || this.configuration.rawg || this.configuration.igdb);
+    if (!hasLocalProvider && !hasRemoteProvider) return '';
 
     const result = await this.post({
       action: 'GET_COVER',

@@ -67,6 +67,7 @@ export class GameView {
     document.querySelector('#profile-name').textContent = name;
     document.querySelector('#profile-subtitle').textContent = subtitle;
     this.setAvatar(document.querySelector('#profile-avatar'), profile.avatar, name);
+    this.renderProfileProvider(profile);
 
     const total = Object.values(library).reduce((sum, games) => sum + games.length, 0);
     const completed = library.concluidos.length + library.platinando.length + library.platinados.length;
@@ -79,6 +80,23 @@ export class GameView {
     document.querySelector('#profile-platinum').textContent = library.platinados.length;
     document.querySelector('#profile-progress').textContent = `${backlogProgress}%`;
     document.querySelector('#profile-progress-detail').textContent = `${played} jogados · ${remaining} no backlog`;
+  }
+
+  renderProfileProvider(profile) {
+    const provider = document.querySelector('#profile-provider');
+    const isSteam = profile.source === 'steam';
+    provider.hidden = !isSteam;
+    if (!isSteam) {
+      provider.removeAttribute('href');
+      return;
+    }
+
+    provider.href = profile.profileUrl || 'https://steamcommunity.com/';
+    const details = [];
+    if (profile.steamLevel != null && Number.isFinite(Number(profile.steamLevel))) details.push(`nível ${Number(profile.steamLevel)}`);
+    if (profile.steamOwnedGames != null && Number.isFinite(Number(profile.steamOwnedGames))) details.push(`${Number(profile.steamOwnedGames).toLocaleString('pt-BR')} jogos`);
+    if (profile.steamHours != null && Number.isFinite(Number(profile.steamHours))) details.push(`${Number(profile.steamHours).toLocaleString('pt-BR')} h`);
+    document.querySelector('#profile-provider-details').textContent = details.join(' · ');
   }
 
   renderCounts(library, total) {
@@ -209,7 +227,7 @@ export class GameView {
     setTimeout(() => document.querySelector('#game-name').focus(), 0);
   }
 
-  fillSettings(settings) {
+  fillSettings(settings, configuration = {}) {
     document.querySelector('#settings-profile-name').value = settings.profileName || '';
     document.querySelector('#settings-profile-subtitle').value = settings.profileSubtitle || '';
     document.querySelector('#settings-url').value = settings.url;
@@ -218,6 +236,23 @@ export class GameView {
     document.querySelector('#settings-rawg').value = settings.rawg;
     document.querySelector('#settings-igdb-id').value = settings.igdbId;
     document.querySelector('#settings-igdb-secret').value = settings.igdbSecret;
+    const providerFields = {
+      steamgrid: document.querySelector('#settings-steamgrid'),
+      rawg: document.querySelector('#settings-rawg'),
+      igdbId: document.querySelector('#settings-igdb-id'),
+      igdbSecret: document.querySelector('#settings-igdb-secret')
+    };
+    Object.entries(providerFields).forEach(([key, field]) => {
+      field.placeholder = configuration[key] ? 'Salva na planilha — digite para substituir' : '';
+    });
+    const configuredProviders = [
+      configuration.steamgrid && 'SteamGridDB',
+      configuration.rawg && 'RAWG',
+      configuration.igdb && 'IGDB'
+    ].filter(Boolean);
+    document.querySelector('#cover-provider-status').textContent = configuredProviders.length
+      ? `${configuredProviders.join(', ')} ${configuredProviders.length === 1 ? 'está salvo' : 'estão salvos'} na planilha.`
+      : 'Nenhum provedor salvo na planilha.';
     this.setAvatar(document.querySelector('#settings-avatar-preview'), settings.avatar, settings.profileName || 'Jogador');
   }
 

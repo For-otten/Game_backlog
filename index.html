@@ -32,10 +32,15 @@
       <section class="profile-panel" aria-labelledby="profile-name">
         <div class="profile-identity">
           <div class="avatar" id="profile-avatar"><img id="profile-avatar-image" alt=""><span id="profile-initial">J</span></div>
-          <div>
+          <div class="profile-copy">
             <p class="eyebrow">Perfil</p>
             <h1 id="profile-name">Jogador</h1>
             <p id="profile-subtitle">Perfil local</p>
+            <a class="profile-provider" id="profile-provider" href="#" target="_blank" rel="noopener noreferrer" hidden>
+              <img src="https://store.steampowered.com/favicon.ico" alt="">
+              <span>Steam</span>
+              <small id="profile-provider-details"></small>
+            </a>
           </div>
         </div>
         <div class="profile-stats" aria-label="Resumo do perfil">
@@ -91,6 +96,7 @@
         <div class="dialog-header"><div><p class="eyebrow">Preferências</p><h2 id="settings-title">Perfil e integração</h2></div><button class="icon-button icon-button--close" type="button" data-close-dialog aria-label="Fechar">×</button></div>
         <div class="settings-section">
           <h3>Perfil</h3>
+          <p class="form-help">Nome, foto e dados públicos são sincronizados automaticamente quando a chave e o Steam ID estão configurados na planilha. Os campos abaixo funcionam como alternativa manual.</p>
           <div class="profile-settings-row">
             <div class="avatar avatar--small" id="settings-avatar-preview"><img id="settings-avatar-image" alt="Prévia da foto"><span id="settings-avatar-initial">J</span></div>
             <label class="button button--secondary file-button">Escolher foto<input id="settings-avatar-file" type="file" accept="image/png,image/jpeg,image/webp"></label>
@@ -100,11 +106,11 @@
         </div>
         <div class="settings-section">
           <h3>Google Sheets</h3>
-          <p class="form-help">Informe a URL do app da Web. Ela começa com <strong>script.google.com/macros/s/</strong> e termina em <strong>/exec</strong>. A URL de edição da planilha não é aceita.</p>
-          <label class="field"><span>URL do app da Web (/exec)</span><input id="settings-url" type="url" required placeholder="https://script.google.com/macros/s/.../exec"></label>
-          <label class="field"><span>Token da API</span><input id="settings-token" type="password" required autocomplete="off" placeholder="Seu token"></label>
+          <p class="form-help">Cole a URL de conexão exibida em <strong>Backlog → Ver URL de conexão</strong> na planilha. Ela já contém o token e termina em <strong>/exec#token=...</strong>.</p>
+          <label class="field"><span>URL de conexão</span><input id="settings-url" type="url" required placeholder="https://script.google.com/macros/s/.../exec#token=..."></label>
+          <details class="advanced-settings connection-advanced"><summary>Conexão manual</summary><label class="field"><span>Token da API</span><input id="settings-token" type="password" autocomplete="off" placeholder="Preenchido automaticamente pela URL"></label></details>
         </div>
-        <details class="advanced-settings"><summary>Provedores de capas</summary><div class="advanced-grid"><label class="field"><span>SteamGridDB Key</span><input id="settings-steamgrid" type="password" autocomplete="off"></label><label class="field"><span>RAWG API Key</span><input id="settings-rawg" type="password" autocomplete="off"></label><label class="field"><span>IGDB Client ID</span><input id="settings-igdb-id" type="password" autocomplete="off"></label><label class="field"><span>IGDB Client Secret</span><input id="settings-igdb-secret" type="password" autocomplete="off"></label></div></details>
+        <details class="advanced-settings"><summary>Provedores de capas</summary><p class="provider-status" id="cover-provider-status">Nenhum provedor salvo na planilha.</p><div class="advanced-grid"><label class="field"><span>SteamGridDB Key</span><input id="settings-steamgrid" type="password" autocomplete="off"></label><label class="field"><span>RAWG API Key</span><input id="settings-rawg" type="password" autocomplete="off"></label><label class="field"><span>IGDB Client ID</span><input id="settings-igdb-id" type="password" autocomplete="off"></label><label class="field"><span>IGDB Client Secret</span><input id="settings-igdb-secret" type="password" autocomplete="off"></label></div></details>
         <div class="dialog-actions"><button class="button button--secondary" type="button" data-close-dialog>Cancelar</button><button class="button button--primary" type="submit">Salvar e conectar</button></div>
       </form>
     </dialog>

@@ -39,7 +39,14 @@ function doPost(e) {
 
     switch (payload.action) {
       case 'GET_LIBRARY':
-        result = { message: 'Biblioteca carregada.' };
+        result = {
+          message: 'Biblioteca carregada.',
+          profile: getConnectedSteamProfile_(),
+          configuration: getIntegrationStatus_()
+        };
+        break;
+      case 'SAVE_SETTINGS':
+        result = saveIntegrationSettings_(payload);
         break;
       case 'ADD_GAME':
         result = addBacklogGame_(payload);
@@ -61,7 +68,9 @@ function doPost(e) {
     return jsonOutput_({
       success: true,
       message: result && result.message ? result.message : 'Alteração salva.',
-      data: readGameDatabase_()
+      data: readGameDatabase_(),
+      profile: result && result.profile ? result.profile : null,
+      configuration: result && result.configuration ? result.configuration : null
     });
   } catch (error) {
     return jsonOutput_({ success: false, message: error.message || String(error) });
@@ -521,10 +530,15 @@ function findCover_(payload) {
   var result = { success: false, coverUrl: null, message: '' };
   var gameName = String(payload.gameName || '').trim();
   if (!gameName) return result;
+  var properties = PropertiesService.getDocumentProperties();
+  var steamgridKey = properties.getProperty('steamgridApiKey') || payload.steamgridKey || '';
+  var rawgKey = properties.getProperty('rawgApiKey') || payload.rawgKey || '';
+  var igdbClientId = properties.getProperty('igdbClientId') || payload.igdbClientId || '';
+  var igdbClientSecret = properties.getProperty('igdbClientSecret') || payload.igdbClientSecret || '';
 
-  if (payload.steamgridKey) {
+  if (steamgridKey) {
     try {
-      var options = { headers: { Authorization: 'Bearer ' + payload.steamgridKey }, muteHttpExceptions: true };
+      var options = { headers: { Authorization: 'Bearer ' + steamgridKey }, muteHttpExceptions: true };
       var searchUrl = 'https://www.steamgriddb.com/api/v2/search/autocomplete/' + encodeURIComponent(gameName);
       var search = JSON.parse(UrlFetchApp.fetch(searchUrl, options).getContentText());
       if (search.data && search.data.length) {
@@ -535,13 +549,13 @@ function findCover_(payload) {
     } catch (ignoreSteamGrid) {}
   }
 
-  if (!result.coverUrl && payload.igdbClientId && payload.igdbClientSecret) {
-    result.coverUrl = getIGDBCover(gameName, payload.igdbClientId, payload.igdbClientSecret);
+  if (!result.coverUrl && igdbClientId && igdbClientSecret) {
+    result.coverUrl = getIGDBCover(gameName, igdbClientId, igdbClientSecret);
   }
 
-  if (!result.coverUrl && payload.rawgKey) {
+  if (!result.coverUrl && rawgKey) {
     try {
-      var rawgUrl = 'https://api.rawg.io/api/games?search=' + encodeURIComponent(gameName) + '&key=' + payload.rawgKey;
+      var rawgUrl = 'https://api.rawg.io/api/games?search=' + encodeURIComponent(gameName) + '&key=' + rawgKey;
       var rawg = JSON.parse(UrlFetchApp.fetch(rawgUrl, { muteHttpExceptions: true }).getContentText());
       if (rawg.results && rawg.results.length) result.coverUrl = rawg.results[0].background_image || null;
     } catch (ignoreRawg) {}
@@ -550,4 +564,113 @@ function findCover_(payload) {
   result.success = Boolean(result.coverUrl);
   if (!result.success) result.message = 'Capa não encontrada.';
   return result;
+}
+
+function saveIntegrationSettings_(payload) {
+  var properties = PropertiesService.getDocumentProperties();
+  var secretFields = {
+    steamgridKey: 'steamgridApiKey',
+    rawgKey: 'rawgApiKey',
+    igdbClientId: 'igdbClientId',
+    igdbClientSecret: 'igdbClientSecret'
+  };
+
+  Object.keys(secretFields).forEach(function (payloadKey) {
+    var value = String(payload[payloadKey] || '').trim();
+    if (value) properties.setProperty(secretFields[payloadKey], value);
+  });
+
+  var profileName = String(payload.profileName || '').trim();
+  var profileSubtitle = String(payload.profileSubtitle || '').trim();
+  if (profileName) properties.setProperty('siteProfileName', profileName);
+  if (profileSubtitle) properties.setProperty('siteProfileSubtitle', profileSubtitle);
+
+  return {
+    message: 'Perfil e integrações salvos na planilha.',
+    profile: getConnectedSteamProfile_(),
+    configuration: getIntegrationStatus_()
+  };
+}
+
+function getIntegrationStatus_() {
+  var properties = PropertiesService.getDocumentProperties();
+  return {
+    steam: Boolean(properties.getProperty('steamApiKey') && properties.getProperty('steamId')),
+    xbox: Boolean(properties.getProperty('xboxApiKey')),
+    steamgrid: Boolean(properties.getProperty('steamgridApiKey')),
+    rawg: Boolean(properties.getProperty('rawgApiKey')),
+    igdb: Boolean(properties.getProperty('igdbClientId') && properties.getProperty('igdbClientSecret')),
+    igdbId: Boolean(properties.getProperty('igdbClientId')),
+    igdbSecret: Boolean(properties.getProperty('igdbClientSecret'))
+  };
+}
+
+function getConnectedSteamProfile_() {
+  var properties = PropertiesService.getDocumentProperties();
+  var steamApiKey = properties.getProperty('steamApiKey');
+  var steamId = properties.getProperty('steamId');
+  var fallback = {
+    profileName: properties.getProperty('siteProfileName') || 'Jogador',
+    profileSubtitle: properties.getProperty('siteProfileSubtitle') || 'Perfil local'
+  };
+  if (!steamApiKey || !steamId) return fallback;
+
+  var cache = CacheService.getDocumentCache();
+  var cached = cache.get('checkpoint-steam-profile-v1');
+  if (cached) {
+    try { return JSON.parse(cached); } catch (ignoreCache) {}
+  }
+
+  try {
+    var summaryUrl = 'https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=' + encodeURIComponent(steamApiKey) + '&steamids=' + encodeURIComponent(steamId);
+    var summary = fetchSteamJson_(summaryUrl);
+    var players = summary && summary.response && summary.response.players;
+    if (!players || !players.length) return fallback;
+    var player = players[0];
+
+    var steamLevel = null;
+    var ownedGames = null;
+    var totalHours = null;
+    try {
+      var levelUrl = 'https://api.steampowered.com/IPlayerService/GetSteamLevel/v1/?key=' + encodeURIComponent(steamApiKey) + '&steamid=' + encodeURIComponent(steamId);
+      var levelData = fetchSteamJson_(levelUrl);
+      steamLevel = levelData && levelData.response ? Number(levelData.response.player_level) : null;
+    } catch (ignoreLevel) {}
+
+    try {
+      var gamesUrl = 'https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=' + encodeURIComponent(steamApiKey) + '&steamid=' + encodeURIComponent(steamId) + '&include_appinfo=0&include_played_free_games=1&format=json';
+      var gamesData = fetchSteamJson_(gamesUrl);
+      var gameResponse = gamesData && gamesData.response;
+      if (gameResponse) {
+        ownedGames = Number(gameResponse.game_count || 0);
+        var minutes = (gameResponse.games || []).reduce(function (sum, game) {
+          return sum + Number(game.playtime_forever || 0);
+        }, 0);
+        totalHours = Math.round(minutes / 60);
+      }
+    } catch (ignoreGames) {}
+
+    var profile = {
+      source: 'steam',
+      profileName: player.personaname || fallback.profileName,
+      profileSubtitle: player.realname || 'Perfil público Steam',
+      avatar: player.avatarfull || player.avatarmedium || player.avatar || '',
+      profileUrl: player.profileurl || '',
+      steamLevel: isNaN(steamLevel) ? null : steamLevel,
+      steamOwnedGames: ownedGames,
+      steamHours: totalHours
+    };
+    cache.put('checkpoint-steam-profile-v1', JSON.stringify(profile), 600);
+    return profile;
+  } catch (error) {
+    console.warn('Não foi possível sincronizar o perfil Steam: ' + error.message);
+    return fallback;
+  }
+}
+
+function fetchSteamJson_(url) {
+  var response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+  var status = response.getResponseCode();
+  if (status < 200 || status >= 300) throw new Error('Steam respondeu com HTTP ' + status + '.');
+  return JSON.parse(response.getContentText());
 }

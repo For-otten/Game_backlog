@@ -233,7 +233,7 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Backlog')
     .addItem('Adicionar jogo', 'showAddGameForm')
-    .addItem('Gerar/Ver token da API', 'gerarTokenAPI')
+    .addItem('Ver URL de conexão', 'gerarTokenAPI')
     .addItem('Regenerar token da API', 'regenerarTokenAPI')
     .addToUi();
 }
@@ -832,10 +832,17 @@ function gerarTokenAPI() {
   var props = PropertiesService.getDocumentProperties();
   var token = props.getProperty('api_token');
   if (!token) {
-    token = Math.random().toString(36).substr(2, 10);
+    token = Utilities.getUuid().replace(/-/g, '');
     props.setProperty('api_token', token);
   }
-  SpreadsheetApp.getUi().alert('Seu Token da API é:\n\n' + token);
+  var connectionUrl = getConnectionUrl_(token);
+  SpreadsheetApp.getUi().alert(
+    'URL de conexão do site',
+    connectionUrl
+      ? 'Cole esta URL no site. Ela já contém o token:\n\n' + connectionUrl
+      : 'Implante o Apps Script como app da Web e execute esta opção novamente.',
+    SpreadsheetApp.getUi().ButtonSet.OK
+  );
 }
 
 function regenerarTokenAPI() {
@@ -849,7 +856,19 @@ function regenerarTokenAPI() {
 
   var token = Utilities.getUuid().replace(/-/g, '');
   PropertiesService.getDocumentProperties().setProperty('api_token', token);
-  ui.alert('Novo token da API:\n\n' + token + '\n\nAtualize o token no site.');
+  var connectionUrl = getConnectionUrl_(token);
+  ui.alert(
+    'Novo token gerado',
+    connectionUrl
+      ? 'A URL anterior deixou de funcionar. Cole esta nova URL no site:\n\n' + connectionUrl
+      : 'O token foi atualizado. Reimplante o app da Web para obter a nova URL de conexão.',
+    ui.ButtonSet.OK
+  );
+}
+
+function getConnectionUrl_(token) {
+  var webAppUrl = ScriptApp.getService().getUrl();
+  return webAppUrl ? webAppUrl + '#token=' + encodeURIComponent(token) : '';
 }
 
 // Retorna todos os dados mapeados exatamente como estão na planilha

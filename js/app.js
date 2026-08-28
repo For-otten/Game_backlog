@@ -1,4 +1,4 @@
-import { EMPTY_LIBRARY, GameApi, LibraryCache, SettingsStore, isWebAppUrl } from './api.js';
+import { EMPTY_LIBRARY, GameApi, LibraryCache, ProfileCache, SettingsStore, isWebAppUrl, parseConnectionUrl } from './api.js';
 import { GameView } from './ui.js';
 
 const SORT_STORAGE_KEY = 'checkpoint.sort-by-filter.v1';
@@ -16,9 +16,12 @@ class GameBacklogApp {
   constructor() {
     this.settings = new SettingsStore();
     this.cache = new LibraryCache();
+    this.profileCache = new ProfileCache();
     this.api = new GameApi(this.settings);
     this.view = new GameView();
     this.library = structuredClone(EMPTY_LIBRARY);
+    this.profileState = this.profileCache.read();
+    this.api.setConfiguration(this.profileState.configuration);
     this.activeFilter = 'todos';
     this.search = '';
     this.sortPreferences = readSortPreferences();
@@ -29,7 +32,7 @@ class GameBacklogApp {
 
   start() {
     this.bindEvents();
-    this.view.fillSettings(this.settings.get());
+    this.view.fillSettings(this.mergedProfile(), this.profileState.configuration);
     this.library = this.cache.read();
     this.render();
     if (this.settings.isConfigured()) {
@@ -90,6 +93,7 @@ class GameBacklogApp {
     document.querySelector('#sync-button').addEventListener('click', () => this.syncTrophies());
     document.querySelector('#settings-avatar-file').addEventListener('change', (event) => this.previewSelectedAvatar(event));
     document.querySelector('#settings-url').addEventListener('input', (event) => event.target.setCustomValidity(''));
+    document.querySelector('#settings-token').addEventListener('input', (event) => event.target.setCustomValidity(''));
     document.querySelector('#settings-profile-name').addEventListener('input', (event) => {
       const source = this.pendingAvatar ?? this.settings.get().avatar;
       this.view.previewAvatar(source, event.target.value);
@@ -97,14 +101,18 @@ class GameBacklogApp {
   }
 
   render() {
-    this.view.render(this.library, this.activeFilter, this.search, this.sort, this.settings.get());
+    this.view.render(this.library, this.activeFilter, this.search, this.sort, this.mergedProfile());
     this.view.observeCovers((name) => this.api.getCover(name));
+  }
+
+  mergedProfile() {
+    return { ...this.settings.get(), ...(this.profileState.profile || {}) };
   }
 
   openSettings() {
     this.pendingAvatar = null;
     document.querySelector('#settings-avatar-file').value = '';
-    this.view.fillSettings(this.settings.get());
+    this.view.fillSettings(this.mergedProfile(), this.profileState.configuration);
     this.view.openDialog('settings-dialog');
   }
 
@@ -131,6 +139,13 @@ class GameBacklogApp {
     try {
       const response = await this.api.getLibrary();
       this.library = this.cache.write(response.data);
+      if (response.profile || response.configuration) {
+        this.profileState = this.profileCache.write(
+          response.profile || this.profileState.profile,
+          response.configuration || this.profileState.configuration
+        );
+        this.api.setConfiguration(this.profileState.configuration);
+      }
       this.render();
       this.view.setConnection('online', 'Planilha conectada');
       if (!silent) this.view.showToast('Biblioteca atualizada.');
@@ -146,29 +161,57 @@ class GameBacklogApp {
     event.preventDefault();
     const previous = this.settings.get();
     const urlField = document.querySelector('#settings-url');
-    const scriptUrl = urlField.value.trim();
-    if (!isWebAppUrl(scriptUrl)) {
+    const tokenField = document.querySelector('#settings-token');
+    const connection = parseConnectionUrl(urlField.value, tokenField.value);
+    if (!isWebAppUrl(connection.url)) {
       urlField.setCustomValidity('Use a URL de implantação do Apps Script terminada em /exec, não a URL da planilha.');
       urlField.reportValidity();
       urlField.focus();
       return;
     }
-    this.settings.save({
+    if (!connection.token) {
+      tokenField.setCustomValidity('Use a URL de conexão completa ou informe o token manualmente.');
+      tokenField.reportValidity();
+      tokenField.focus();
+      return;
+    }
+    tokenField.setCustomValidity('');
+    const localSettings = this.settings.save({
       ...previous,
       profileName: document.querySelector('#settings-profile-name').value.trim() || 'Jogador',
       profileSubtitle: document.querySelector('#settings-profile-subtitle').value.trim() || 'Perfil local',
       avatar: this.pendingAvatar ?? previous.avatar ?? '',
-      url: scriptUrl,
-      token: document.querySelector('#settings-token').value,
+      url: connection.url,
+      token: connection.token,
       steamgrid: document.querySelector('#settings-steamgrid').value,
       rawg: document.querySelector('#settings-rawg').value,
       igdbId: document.querySelector('#settings-igdb-id').value,
       igdbSecret: document.querySelector('#settings-igdb-secret').value
     });
-    this.pendingAvatar = null;
-    this.view.closeDialog('settings-dialog');
-    this.render();
-    await this.refresh();
+    this.view.showToast('Salvando configuração na planilha', { loading: true });
+    try {
+      const response = await this.api.saveRemoteSettings({
+        profileName: localSettings.profileName,
+        profileSubtitle: localSettings.profileSubtitle,
+        steamgridKey: localSettings.steamgrid,
+        rawgKey: localSettings.rawg,
+        igdbClientId: localSettings.igdbId,
+        igdbClientSecret: localSettings.igdbSecret
+      });
+      this.settings.save({ ...localSettings, steamgrid: '', rawg: '', igdbId: '', igdbSecret: '' });
+      this.profileState = this.profileCache.write(
+        response.profile || this.profileState.profile,
+        response.configuration || this.profileState.configuration
+      );
+      this.api.setConfiguration(this.profileState.configuration);
+      this.pendingAvatar = null;
+      this.view.closeDialog('settings-dialog');
+      this.render();
+      await this.refresh({ silent: true });
+      this.view.showToast('Perfil e integrações salvos na planilha.');
+    } catch (error) {
+      this.view.showToast(error.message, { error: true, duration: 5200 });
+    }
   }
 
   async saveGame(event) {

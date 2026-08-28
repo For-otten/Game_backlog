@@ -57,15 +57,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
   grid-template-columns: minmax(320px, 1fr) auto;
   gap: 64px;
   align-items: center;
-  min-height: 190px;
-  padding: 32px 38px;
+  min-height: 218px;
+  padding: 38px 42px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--panel);
 }
 
-.profile-identity { min-width: 0; display: flex; align-items: center; gap: 24px; }
-.avatar { position: relative; width: 96px; height: 96px; flex: 0 0 auto; overflow: hidden; display: grid; place-items: center; border: 1px solid var(--line-strong); border-radius: 6px; background: #1d222a; color: var(--muted); font-size: 30px; font-weight: 700; }
+.profile-identity { min-width: 0; display: flex; align-items: center; gap: 30px; }
+.profile-copy { min-width: 0; }
+.avatar { position: relative; width: 116px; height: 116px; flex: 0 0 auto; overflow: hidden; display: grid; place-items: center; border: 1px solid var(--line-strong); border-radius: 6px; background: #1d222a; color: var(--muted); font-size: 34px; font-weight: 700; box-shadow: 0 16px 38px rgb(0 0 0 / 32%); }
 .avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .avatar img:not([src]) { display: none; }
 .avatar--small { width: 58px; height: 58px; font-size: 18px; }
@@ -73,6 +74,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 h1, h2, h3, p { text-wrap: pretty; }
 h1 { margin: 0; overflow: hidden; font-size: clamp(32px, 3.2vw, 46px); line-height: 1.08; letter-spacing: -.035em; text-overflow: ellipsis; white-space: nowrap; }
 #profile-subtitle { margin: 9px 0 0; color: var(--muted); font-size: 15px; }
+.profile-provider { width: max-content; max-width: 100%; display: flex; align-items: center; gap: 9px; margin-top: 17px; color: var(--text); font-size: 12px; font-weight: 750; letter-spacing: .04em; text-decoration: none; text-transform: uppercase; }
+.profile-provider[hidden] { display: none; }
+.profile-provider img { width: 18px; height: 18px; object-fit: contain; }
+.profile-provider small { overflow: hidden; color: var(--muted); font-size: 12px; font-weight: 500; letter-spacing: 0; text-overflow: ellipsis; text-transform: none; white-space: nowrap; }
+.profile-provider:hover span { color: var(--accent-strong); }
 
 .profile-stats { display: grid; grid-template-columns: repeat(3, minmax(120px, 1fr)) minmax(210px, 1.4fr); }
 .profile-stats > div { min-width: 120px; padding: 3px 26px; border-left: 1px solid var(--line); }
@@ -200,6 +206,9 @@ h1 { margin: 0; overflow: hidden; font-size: clamp(32px, 3.2vw, 46px); line-heig
 .file-button input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .advanced-settings { border-bottom: 1px solid var(--line); padding-bottom: 16px; }
 .advanced-settings summary { width: max-content; color: var(--accent-strong); font-size: 11px; cursor: pointer; }
+.connection-advanced { padding: 2px 0 0; border-bottom: 0; }
+.connection-advanced .field { margin-top: 14px; }
+.provider-status { margin: 12px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
 .advanced-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; margin-top: 16px; }
 .dialog-actions { position: sticky; bottom: -24px; display: flex; justify-content: flex-end; gap: 9px; margin-top: 2px; padding: 16px 0 0; background: var(--panel-2); border-top: 1px solid var(--line); }
 
@@ -228,7 +237,9 @@ h1 { margin: 0; overflow: hidden; font-size: clamp(32px, 3.2vw, 46px); line-heig
   .page { width: min(100% - 28px, 1680px); padding-top: 28px; }
   .profile-panel { padding: 24px; }
   .profile-identity { align-items: flex-start; }
-  .avatar { width: 72px; height: 72px; }
+  .avatar { width: 82px; height: 82px; }
+  .profile-provider { align-items: flex-start; flex-wrap: wrap; }
+  .profile-provider small { width: 100%; white-space: normal; }
   .profile-stats { grid-template-columns: 1fr 1fr; gap: 16px 0; }
   .profile-stats > div { padding: 0 14px; }
   .profile-stats > div:nth-child(odd) { border-left: 0; padding-left: 0; }
