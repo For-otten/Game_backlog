@@ -26,6 +26,10 @@ google-apps-script/FormularioAdicionarJogo.html
 
 Se `steamApiKey` e `steamId` já estiverem configurados nas propriedades da planilha, o site sincroniza automaticamente nome, avatar, link, nível, quantidade de jogos e horas públicas do perfil Steam. As chaves SteamGridDB, RAWG e IGDB informadas no site são gravadas nas propriedades privadas do Apps Script e reutilizadas em outros navegadores.
 
+Ao abrir o site, a wishlist pública vinculada ao `steamId` é verificada uma vez. O sistema resolve os nomes em lote e adiciona somente títulos que ainda não aparecem em nenhuma lista, sem alterar os jogos existentes. Os novos registros entram no backlog com plataforma **Steam** e interesse **Médio**. O botão **Importar da Steam** permite repetir a verificação manualmente.
+
+Cada item importado recebe na coluna técnica oculta `Z` a origem `steam_wishlist:<appid>`. Quando ele deixa a wishlist, somente a linha de backlog com essa origem é removida. Jogos adicionados manualmente nunca recebem a marca, mesmo que usem a plataforma Steam, e por isso não são afetados. Ao concluir, dropar ou mover um jogo, a linha de origem é excluída e o registro histórico deixa de ser gerenciado pela wishlist.
+
 O backend pressupõe estes pontos de início, iguais aos códigos recebidos:
 
 - backlog na linha 2 da aba `Lista de Jogos`;

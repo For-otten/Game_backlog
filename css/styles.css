@@ -90,6 +90,7 @@ h1 { margin: 0; overflow: hidden; font-size: clamp(32px, 3.2vw, 46px); line-heig
 .library-section { margin-top: 58px; }
 .library-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 30px; }
 .library-heading h2 { margin: 0; font-size: 38px; letter-spacing: -.035em; }
+.library-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
 
 .button {
   min-height: 48px;
@@ -244,6 +245,9 @@ h1 { margin: 0; overflow: hidden; font-size: clamp(32px, 3.2vw, 46px); line-heig
   .profile-stats > div { padding: 0 14px; }
   .profile-stats > div:nth-child(odd) { border-left: 0; padding-left: 0; }
   .library-section { margin-top: 36px; }
+  .library-heading { align-items: flex-start; }
+  .library-actions { max-width: 250px; }
+  .library-actions .button { flex: 1 1 auto; }
   .toolbar { grid-template-columns: 1fr auto; padding: 12px 0; }
   .search-field { grid-column: 1 / -1; }
   .result-count { grid-column: 2; grid-row: 2; }

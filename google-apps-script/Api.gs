@@ -12,8 +12,12 @@ var GAME_DB = {
   droppedSheet: 'Dropados',
   backlogStart: 2,
   completedStart: 3,
-  droppedStart: 2
+  droppedStart: 2,
+  sourceColumn: 26
 };
+
+var STEAM_WISHLIST_SOURCE_HEADER = '_checkpoint_source';
+var STEAM_WISHLIST_SOURCE_PREFIX = 'steam_wishlist:';
 
 function doGet(e) {
   try {
@@ -61,6 +65,9 @@ function doPost(e) {
         atualizarTrofeusHeadless();
         result = { message: 'Troféus sincronizados.' };
         break;
+      case 'IMPORT_STEAM_WISHLIST':
+        result = importSteamWishlist_();
+        break;
       default:
         throw new Error('Ação não reconhecida.');
     }
@@ -70,7 +77,10 @@ function doPost(e) {
       message: result && result.message ? result.message : 'Alteração salva.',
       data: readGameDatabase_(),
       profile: result && result.profile ? result.profile : null,
-      configuration: result && result.configuration ? result.configuration : null
+      configuration: result && result.configuration ? result.configuration : null,
+      imported: result && typeof result.imported === 'number' ? result.imported : null,
+      skipped: result && typeof result.skipped === 'number' ? result.skipped : null,
+      removed: result && typeof result.removed === 'number' ? result.removed : null
     });
   } catch (error) {
     return jsonOutput_({ success: false, message: error.message || String(error) });
@@ -231,8 +241,172 @@ function addBacklogGame_(payload) {
   sheet.getRange(targetRow, 1, 1, 3).setValues([[name, platform, interest]]);
   sheet.getRange(targetRow, 4).insertCheckboxes().setValue(false);
   sheet.getRange(targetRow, 5).clearContent().clearDataValidations();
+  writeBacklogSourceTag_(sheet, targetRow, payload.sourceTag || '');
 
   return { message: '“' + name + '” foi adicionado ao backlog.' };
+}
+
+function importSteamWishlist_() {
+  var steamId = String(PropertiesService.getDocumentProperties().getProperty('steamId') || '').trim();
+  if (!steamId) throw new Error('Configure o Steam ID nas propriedades da planilha antes de importar a wishlist.');
+
+  var wishlistGames = fetchSteamWishlistGames_(steamId);
+  var wishlistAppIds = {};
+  wishlistGames.forEach(function (game) { wishlistAppIds[String(game.appid)] = true; });
+
+  var sheet = getMainSheet_();
+  var sourceSync = syncWishlistSourceRows_(sheet, wishlistAppIds);
+
+  var database = readGameDatabase_();
+  var existingNames = {};
+  ['backlog', 'concluidos', 'platinando', 'platinados', 'dropados'].forEach(function (collection) {
+    database[collection].forEach(function (game) {
+      existingNames[normalizeKey_(game.nome)] = true;
+    });
+  });
+
+  var added = 0;
+  var skipped = 0;
+  var unresolved = 0;
+  wishlistGames.slice().reverse().forEach(function (game) {
+    var nameKey = normalizeKey_(game.name);
+    if (!nameKey) {
+      unresolved += 1;
+      return;
+    }
+    if (existingNames[nameKey] || sourceSync.activeAppIds[String(game.appid)]) {
+      skipped += 1;
+      return;
+    }
+
+    addBacklogGame_({
+      nome: game.name,
+      plataforma: 'Steam',
+      interesse: 'Médio',
+      sourceTag: STEAM_WISHLIST_SOURCE_PREFIX + game.appid
+    });
+    existingNames[nameKey] = true;
+    sourceSync.activeAppIds[String(game.appid)] = true;
+    added += 1;
+  });
+
+  var changes = [];
+  if (added) changes.push(added + (added === 1 ? ' jogo adicionado ao backlog' : ' jogos adicionados ao backlog'));
+  if (sourceSync.removed) changes.push(sourceSync.removed + (sourceSync.removed === 1 ? ' jogo removido do backlog' : ' jogos removidos do backlog'));
+
+  var message = changes.length ? 'Wishlist Steam: ' + changes.join(' e ') + '.' : 'Wishlist Steam verificada: nenhuma alteração.';
+  if (skipped) message += ' ' + skipped + (skipped === 1 ? ' jogo já estava na biblioteca.' : ' jogos já estavam na biblioteca.');
+  if (unresolved) message += ' ' + unresolved + (unresolved === 1 ? ' item não pôde ser identificado.' : ' itens não puderam ser identificados.');
+  return {
+    message: message,
+    imported: added,
+    skipped: skipped,
+    removed: sourceSync.removed
+  };
+}
+
+function fetchSteamWishlistGames_(steamId) {
+  var countUrl = 'https://api.steampowered.com/IWishlistService/GetWishlistItemCount/v1/?steamid=' + encodeURIComponent(steamId);
+  var countData = fetchSteamJson_(countUrl);
+  var count = countData && countData.response && countData.response.count;
+  if (typeof count !== 'number') {
+    throw new Error('A wishlist não está pública no perfil Steam.');
+  }
+  if (count === 0) return [];
+
+  var wishlistUrl = 'https://api.steampowered.com/IWishlistService/GetWishlist/v1/?steamid=' + encodeURIComponent(steamId);
+  var wishlistData = fetchSteamJson_(wishlistUrl);
+  var wishlistItems = wishlistData && wishlistData.response && wishlistData.response.items;
+  if (!Array.isArray(wishlistItems) || !wishlistItems.length) {
+    throw new Error('A Steam não retornou os itens da wishlist. Tente novamente mais tarde.');
+  }
+
+  var itemsByAppId = {};
+  var batchSize = 100;
+  for (var offset = 0; offset < wishlistItems.length; offset += batchSize) {
+    var batch = wishlistItems.slice(offset, offset + batchSize).filter(function (item) {
+      return Number(item && item.appid) > 0;
+    });
+    if (!batch.length) continue;
+
+    var request = {
+      ids: batch.map(function (item) { return { appid: Number(item.appid) }; }),
+      context: { language: 'brazilian', country_code: 'BR', steam_realm: 1 },
+      data_request: { include_basic_info: true }
+    };
+    var itemsUrl = 'https://api.steampowered.com/IStoreBrowseService/GetItems/v1/?input_json=' + encodeURIComponent(JSON.stringify(request));
+    var storeData = fetchSteamJson_(itemsUrl);
+    var storeItems = storeData && storeData.response && storeData.response.store_items;
+    (storeItems || []).forEach(function (item) {
+      var appId = Number(item && item.appid);
+      var name = String((item && item.name) || '').trim();
+      if (appId && name) itemsByAppId[appId] = name;
+    });
+  }
+
+  return wishlistItems.map(function (item) {
+    var appId = Number(item && item.appid);
+    return { appid: appId, name: itemsByAppId[appId] || '' };
+  }).filter(function (item) { return item.appid; });
+}
+
+function syncWishlistSourceRows_(sheet, currentAppIds) {
+  ensureWishlistSourceColumn_(sheet);
+  var lastRow = lastNamedRow_(sheet, GAME_DB.backlogStart, 1);
+  var activeAppIds = {};
+  var rowsToDelete = [];
+
+  if (lastRow >= GAME_DB.backlogStart) {
+    var sourceValues = sheet.getRange(
+      GAME_DB.backlogStart,
+      GAME_DB.sourceColumn,
+      lastRow - GAME_DB.backlogStart + 1,
+      1
+    ).getValues();
+
+    sourceValues.forEach(function (record, index) {
+      var tag = String(record[0] || '').trim();
+      if (tag.indexOf(STEAM_WISHLIST_SOURCE_PREFIX) !== 0) return;
+      var appId = tag.slice(STEAM_WISHLIST_SOURCE_PREFIX.length);
+      if (currentAppIds[appId]) {
+        activeAppIds[appId] = true;
+      } else {
+        rowsToDelete.push(GAME_DB.backlogStart + index);
+      }
+    });
+  }
+
+  rowsToDelete.sort(function (a, b) { return b - a; }).forEach(function (row) {
+    sheet.deleteRow(row);
+  });
+
+  return { activeAppIds: activeAppIds, removed: rowsToDelete.length };
+}
+
+function writeBacklogSourceTag_(sheet, row, sourceTag) {
+  var tag = String(sourceTag || '').trim();
+  if (!tag) {
+    if (sheet.getMaxColumns() >= GAME_DB.sourceColumn) {
+      sheet.getRange(row, GAME_DB.sourceColumn).clearContent();
+    }
+    return;
+  }
+
+  ensureWishlistSourceColumn_(sheet);
+  sheet.getRange(row, GAME_DB.sourceColumn).setValue(tag);
+}
+
+function ensureWishlistSourceColumn_(sheet) {
+  if (sheet.getMaxColumns() < GAME_DB.sourceColumn) {
+    sheet.insertColumnsAfter(sheet.getMaxColumns(), GAME_DB.sourceColumn - sheet.getMaxColumns());
+  }
+
+  var header = String(sheet.getRange(1, GAME_DB.sourceColumn).getValue() || '').trim();
+  if (header && header !== STEAM_WISHLIST_SOURCE_HEADER) {
+    throw new Error('A coluna técnica Z já está em uso. Libere essa coluna para sincronizar a wishlist.');
+  }
+  if (!header) sheet.getRange(1, GAME_DB.sourceColumn).setValue(STEAM_WISHLIST_SOURCE_HEADER);
+  sheet.hideColumns(GAME_DB.sourceColumn);
 }
 
 function updateGame_(payload) {
@@ -596,6 +770,7 @@ function getIntegrationStatus_() {
   var properties = PropertiesService.getDocumentProperties();
   return {
     steam: Boolean(properties.getProperty('steamApiKey') && properties.getProperty('steamId')),
+    steamWishlist: Boolean(properties.getProperty('steamId')),
     xbox: Boolean(properties.getProperty('xboxApiKey')),
     steamgrid: Boolean(properties.getProperty('steamgridApiKey')),
     rawg: Boolean(properties.getProperty('rawgApiKey')),

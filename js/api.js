@@ -155,6 +155,10 @@ export class GameApi {
     return this.post({ action: 'FETCH_TROPHIES' });
   }
 
+  importSteamWishlist() {
+    return this.post({ action: 'IMPORT_STEAM_WISHLIST' });
+  }
+
   saveRemoteSettings(settings) {
     return this.post({ action: 'SAVE_SETTINGS', ...settings });
   }

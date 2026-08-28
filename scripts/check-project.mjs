@@ -11,6 +11,7 @@ for (const id of ['status-filters', 'games-list', 'game-form', 'settings-form', 
   assert.match(html, new RegExp(`id=["']${id}["']`), `Elemento #${id} ausente no HTML.`);
 }
 assert.match(html, /id="profile-provider"/, 'Identificação da plataforma do perfil ausente.');
+assert.match(html, /id="wishlist-import-button"/, 'A ação de importar a wishlist Steam está ausente.');
 assert.doesNotMatch(html, /\sonclick=/i, 'A interface não deve voltar a usar handlers inline.');
 assert.match(html, /type="module" src="\.\/js\/app\.js"/, 'Entrada JavaScript modular ausente.');
 assert.match(html, /option value="date"/, 'A opção de ordenação por data está ausente.');
@@ -18,6 +19,13 @@ assert.match(appSource, /concluidos:\s*'progress'/, 'Concluídos devem usar prog
 assert.match(appSource, /backlog:\s*'sheet'/, 'Backlog deve manter a ordem da planilha por padrão.');
 assert.match(appSource, /dropados:\s*'date'/, 'Dropados devem usar data como ordenação padrão.');
 assert.match(uiSource, /sort === 'date'/, 'A ordenação por data não foi implementada.');
+assert.match(appSource, /importSteamWishlist/, 'A interface não aciona a importação da wishlist Steam.');
+assert.match(appSource, /checkWishlist:\s*true/, 'A wishlist Steam deve ser verificada ao abrir o site.');
+assert.match(appSource, /wishlistImport\?\.imported\s*>\s*0\s*\|\|\s*wishlistImport\?\.removed\s*>\s*0/, 'Alterações automáticas da wishlist devem ser informadas ao usuário.');
+assert.match(apiSource, /IMPORT_STEAM_WISHLIST/, 'A API não reconhece a importação da wishlist Steam.');
+assert.match(apiSource, /STEAM_WISHLIST_SOURCE_PREFIX/, 'Jogos importados precisam de uma origem técnica interna.');
+assert.match(apiSource, /syncWishlistSourceRows_/, 'Jogos removidos da wishlist precisam ser reconciliados no backend.');
+assert.doesNotMatch(html, /steam_wishlist:/, 'A origem técnica da wishlist não deve aparecer no frontend.');
 
 const stored = new Map([
   ['gs_url', 'https://script.google.com/macros/s/deployment-id/exec'],
@@ -65,6 +73,24 @@ class FakeRange {
       )
     );
   }
+
+  getValue() { return this.getValues()[0][0]; }
+
+  setValue(value) {
+    if (!this.sheet.cells[this.row - 1]) this.sheet.cells[this.row - 1] = [];
+    this.sheet.cells[this.row - 1][this.column - 1] = value;
+    return this;
+  }
+
+  clearContent() {
+    for (let rowOffset = 0; rowOffset < this.rows; rowOffset += 1) {
+      if (!this.sheet.cells[this.row - 1 + rowOffset]) continue;
+      for (let columnOffset = 0; columnOffset < this.columns; columnOffset += 1) {
+        this.sheet.cells[this.row - 1 + rowOffset][this.column - 1 + columnOffset] = '';
+      }
+    }
+    return this;
+  }
 }
 
 class FakeSheet {
@@ -73,6 +99,12 @@ class FakeSheet {
     this.cells = cells;
   }
   getName() { return this.name; }
+  getMaxColumns() { return Math.max(1, ...this.cells.map((row) => row?.length || 0)); }
+  insertColumnsAfter(column, count) {
+    this.cells.forEach((row) => row.splice(column, 0, ...Array(count).fill('')));
+  }
+  hideColumns(column) { this.hiddenColumn = column; }
+  deleteRow(row) { this.cells.splice(row - 1, 1); }
   getLastRow() {
     for (let index = this.cells.length - 1; index >= 0; index -= 1) {
       if (this.cells[index]?.some((cell) => cell !== '' && cell != null)) return index + 1;
@@ -127,6 +159,9 @@ const context = vm.createContext({
     getContentText: () => {
       if (url.includes('GetPlayerSummaries')) return JSON.stringify({ response: { players: [{ personaname: 'Herion', avatarfull: 'https://cdn.example/avatar.jpg', profileurl: 'https://steamcommunity.com/id/herion/' }] } });
       if (url.includes('GetSteamLevel')) return JSON.stringify({ response: { player_level: 42 } });
+      if (url.includes('GetWishlistItemCount')) return JSON.stringify({ response: { count: 2 } });
+      if (url.includes('GetWishlist/v1')) return JSON.stringify({ response: { items: [{ appid: 220860 }, { appid: 233860 }] } });
+      if (url.includes('IStoreBrowseService')) return JSON.stringify({ response: { store_items: [{ appid: 220860, name: 'McPixel' }, { appid: 233860, name: 'Kenshi' }] } });
       return JSON.stringify({ response: { game_count: 2, games: [{ playtime_forever: 120 }, { playtime_forever: 180 }] } });
     }
   }) },
@@ -146,11 +181,34 @@ assert.equal(context.isPlatinumRecord_('100%', ''), true);
 assert.equal(context.isPlatinumRecord_('99%', ''), false);
 assert.equal(context.normalizeInterest_('medio'), 'Médio');
 assert.equal(context.getIntegrationStatus_().steam, true);
+assert.equal(context.getIntegrationStatus_().steamWishlist, true);
 assert.equal(context.getIntegrationStatus_().steamgrid, true);
 const steamProfile = context.getConnectedSteamProfile_();
 assert.equal(steamProfile.profileName, 'Herion');
 assert.equal(steamProfile.steamLevel, 42);
 assert.equal(steamProfile.steamOwnedGames, 2);
 assert.equal(steamProfile.steamHours, 5);
+assert.deepEqual(
+  Array.from(context.fetchSteamWishlistGames_('76561198000000000'), (game) => game.name),
+  ['McPixel', 'Kenshi'],
+  'A wishlist deve resolver os AppIDs em nomes de jogos.'
+);
+
+const sourceHeader = Array(26).fill('');
+sourceHeader[0] = 'Nome';
+sourceHeader[25] = '_checkpoint_source';
+const importedCurrent = Array(26).fill('');
+importedCurrent[0] = 'McPixel';
+importedCurrent[25] = 'steam_wishlist:220860';
+const importedRemoved = Array(26).fill('');
+importedRemoved[0] = 'Jogo removido da wishlist';
+importedRemoved[25] = 'steam_wishlist:999';
+const manualSteam = Array(26).fill('');
+manualSteam[0] = 'Jogo Steam manual';
+const sourceSheet = new FakeSheet('Lista de Jogos', [sourceHeader, importedCurrent, importedRemoved, manualSteam]);
+const sourceResult = context.syncWishlistSourceRows_(sourceSheet, { 220860: true });
+assert.equal(sourceResult.removed, 1, 'Somente a origem ausente da wishlist deve ser removida.');
+assert.deepEqual(sourceSheet.cells.slice(1).map((row) => row[0]), ['McPixel', 'Jogo Steam manual']);
+assert.equal(sourceSheet.hiddenColumn, 26, 'A coluna técnica da origem deve permanecer oculta.');
 
 console.log('Estrutura e regras principais verificadas com sucesso.');

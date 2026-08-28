@@ -27,6 +27,7 @@ class GameBacklogApp {
     this.sortPreferences = readSortPreferences();
     this.sort = sortForFilter(this.activeFilter, this.sortPreferences);
     this.busy = false;
+    this.wishlistChecked = false;
     this.pendingAvatar = null;
   }
 
@@ -37,7 +38,7 @@ class GameBacklogApp {
     this.render();
     if (this.settings.isConfigured()) {
       this.view.setConnection('online', 'Conectando');
-      this.refresh({ silent: true });
+      this.refresh({ silent: true, checkWishlist: true });
     } else {
       const saved = this.settings.get();
       const invalidUrl = Boolean(saved.url && !isWebAppUrl(saved.url));
@@ -91,6 +92,7 @@ class GameBacklogApp {
     document.querySelector('#game-form').addEventListener('submit', (event) => this.saveGame(event));
     document.querySelector('#settings-form').addEventListener('submit', (event) => this.saveSettings(event));
     document.querySelector('#sync-button').addEventListener('click', () => this.syncTrophies());
+    document.querySelector('#wishlist-import-button').addEventListener('click', () => this.importSteamWishlist());
     document.querySelector('#settings-avatar-file').addEventListener('change', (event) => this.previewSelectedAvatar(event));
     document.querySelector('#settings-url').addEventListener('input', (event) => event.target.setCustomValidity(''));
     document.querySelector('#settings-token').addEventListener('input', (event) => event.target.setCustomValidity(''));
@@ -132,7 +134,7 @@ class GameBacklogApp {
     }
   }
 
-  async refresh({ silent = false } = {}) {
+  async refresh({ silent = false, checkWishlist = false } = {}) {
     if (this.busy || !this.settings.isConfigured()) return;
     this.busy = true;
     if (!silent) this.view.showToast('Sincronizando biblioteca', { loading: true });
@@ -146,9 +148,25 @@ class GameBacklogApp {
         );
         this.api.setConfiguration(this.profileState.configuration);
       }
+
+      let wishlistImport = null;
+      if (checkWishlist && !this.wishlistChecked && (this.profileState.configuration?.steamWishlist || this.profileState.configuration?.steam)) {
+        this.wishlistChecked = true;
+        try {
+          wishlistImport = await this.api.importSteamWishlist();
+          if (wishlistImport.data) this.library = this.cache.write(wishlistImport.data);
+        } catch (error) {
+          console.warn(`Wishlist Steam não importada: ${error.message}`);
+        }
+      }
+
       this.render();
       this.view.setConnection('online', 'Planilha conectada');
-      if (!silent) this.view.showToast('Biblioteca atualizada.');
+      if (wishlistImport?.imported > 0 || wishlistImport?.removed > 0) {
+        this.view.showToast(wishlistImport.message);
+      } else if (!silent) {
+        this.view.showToast('Biblioteca atualizada.');
+      }
     } catch (error) {
       this.view.setConnection('error', 'Falha na conexão');
       this.view.showToast(error.message, { error: true, duration: 5200 });
@@ -207,7 +225,7 @@ class GameBacklogApp {
       this.pendingAvatar = null;
       this.view.closeDialog('settings-dialog');
       this.render();
-      await this.refresh({ silent: true });
+      await this.refresh({ silent: true, checkWishlist: true });
       this.view.showToast('Perfil e integrações salvos na planilha.');
     } catch (error) {
       this.view.showToast(error.message, { error: true, duration: 5200 });
@@ -270,6 +288,15 @@ class GameBacklogApp {
     if (this.busy) return;
     if (!(await this.view.confirm('Sincronizar agora os troféus da Steam e do Xbox?'))) return;
     await this.mutate(() => this.api.syncTrophies(), 'Sincronizando troféus');
+  }
+
+  async importSteamWishlist() {
+    if (this.busy) return;
+    const confirmed = await this.view.confirm(
+      'Importar os jogos da sua wishlist pública da Steam para o backlog? Jogos que já fazem parte da biblioteca serão ignorados.'
+    );
+    if (!confirmed) return;
+    await this.mutate(() => this.api.importSteamWishlist(), 'Importando wishlist da Steam');
   }
 
   async mutate(operation, loadingMessage) {
