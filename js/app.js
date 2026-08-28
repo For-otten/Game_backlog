@@ -91,7 +91,8 @@ class GameBacklogApp {
     document.querySelector('#games-list').addEventListener('click', (event) => this.handleGameAction(event));
     document.querySelector('#game-form').addEventListener('submit', (event) => this.saveGame(event));
     document.querySelector('#settings-form').addEventListener('submit', (event) => this.saveSettings(event));
-    document.querySelector('#sync-button').addEventListener('click', () => this.syncTrophies());
+    document.querySelector('#sync-button').addEventListener('click', () => this.refresh({ checkWishlist: true }));
+    document.querySelector('#trophies-button').addEventListener('click', () => this.syncTrophies());
     document.querySelector('#wishlist-import-button').addEventListener('click', () => this.importSteamWishlist());
     document.querySelector('#settings-avatar-file').addEventListener('change', (event) => this.previewSelectedAvatar(event));
     document.querySelector('#settings-url').addEventListener('input', (event) => event.target.setCustomValidity(''));
@@ -137,6 +138,7 @@ class GameBacklogApp {
   async refresh({ silent = false, checkWishlist = false } = {}) {
     if (this.busy || !this.settings.isConfigured()) return;
     this.busy = true;
+    let shouldCheckWishlist = false;
     if (!silent) this.view.showToast('Sincronizando biblioteca', { loading: true });
     try {
       const response = await this.api.getLibrary();
@@ -149,29 +151,33 @@ class GameBacklogApp {
         this.api.setConfiguration(this.profileState.configuration);
       }
 
-      let wishlistImport = null;
-      if (checkWishlist && !this.wishlistChecked && (this.profileState.configuration?.steamWishlist || this.profileState.configuration?.steam)) {
-        this.wishlistChecked = true;
-        try {
-          wishlistImport = await this.api.importSteamWishlist();
-          if (wishlistImport.data) this.library = this.cache.write(wishlistImport.data);
-        } catch (error) {
-          console.warn(`Wishlist Steam não importada: ${error.message}`);
-        }
-      }
-
       this.render();
       this.view.setConnection('online', 'Planilha conectada');
-      if (wishlistImport?.imported > 0 || wishlistImport?.removed > 0) {
-        this.view.showToast(wishlistImport.message);
-      } else if (!silent) {
-        this.view.showToast('Biblioteca atualizada.');
-      }
+      if (!silent) this.view.showToast('Biblioteca atualizada.');
+      shouldCheckWishlist = checkWishlist && !this.wishlistChecked
+        && Boolean(this.profileState.configuration?.steamWishlist || this.profileState.configuration?.steam);
     } catch (error) {
       this.view.setConnection('error', 'Falha na conexão');
       this.view.showToast(error.message, { error: true, duration: 5200 });
     } finally {
       this.busy = false;
+    }
+
+    if (shouldCheckWishlist) this.checkWishlistInBackground();
+  }
+
+  async checkWishlistInBackground() {
+    if (this.wishlistChecked) return;
+    this.wishlistChecked = true;
+    try {
+      const result = await this.api.importSteamWishlist();
+      if (result.data) {
+        this.library = this.cache.write(result.data);
+        this.render();
+      }
+      if (result?.imported > 0 || result?.removed > 0) this.view.showToast(result.message);
+    } catch (error) {
+      console.warn(`Wishlist Steam não importada: ${error.message}`);
     }
   }
 

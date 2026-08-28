@@ -31,7 +31,7 @@
       </a>
       <div class="topbar-actions">
         <span class="connection" id="connection-label">Não configurado</span>
-        <button class="button button--ghost" type="button" id="sync-button">Sincronizar</button>
+        <button class="button button--ghost" type="button" id="sync-button">Atualizar</button>
         <button class="button button--ghost" type="button" data-open-dialog="settings-dialog">Configurações</button>
       </div>
     </header>
@@ -122,6 +122,7 @@
           <details class="advanced-settings connection-advanced"><summary>Conexão manual</summary><label class="field"><span>Token da API</span><input id="settings-token" type="password" autocomplete="off" placeholder="Preenchido automaticamente pela URL"></label></details>
         </div>
         <details class="advanced-settings"><summary>Provedores de capas</summary><p class="provider-status" id="cover-provider-status">Nenhum provedor salvo na planilha.</p><div class="advanced-grid"><label class="field"><span>SteamGridDB Key</span><input id="settings-steamgrid" type="password" autocomplete="off"></label><label class="field"><span>RAWG API Key</span><input id="settings-rawg" type="password" autocomplete="off"></label><label class="field"><span>IGDB Client ID</span><input id="settings-igdb-id" type="password" autocomplete="off"></label><label class="field"><span>IGDB Client Secret</span><input id="settings-igdb-secret" type="password" autocomplete="off"></label></div></details>
+        <details class="advanced-settings"><summary>Sincronização de troféus</summary><p class="form-help">Consulta os troféus dos jogos concluídos e em andamento na Steam e no Xbox. Pode levar alguns minutos em bibliotecas grandes.</p><button class="button button--secondary" type="button" id="trophies-button">Sincronizar troféus</button></details>
         <div class="dialog-actions"><button class="button button--secondary" type="button" data-close-dialog>Cancelar</button><button class="button button--primary" type="submit">Salvar e conectar</button></div>
       </form>
     </dialog>

@@ -17,6 +17,7 @@ assert.match(html, /id="profile-provider"/, 'Identificação da plataforma do pe
 assert.match(html, /rel="manifest" href="\.\/manifest\.webmanifest"/, 'Manifesto PWA ausente no HTML.');
 assert.match(html, /class="brand-mark"/, 'Marca vetorial ausente no cabeçalho.');
 assert.match(html, /id="wishlist-import-button"/, 'A ação de importar a wishlist Steam está ausente.');
+assert.match(html, /id="trophies-button"/, 'A sincronização pesada de troféus deve ser uma ação explícita.');
 assert.doesNotMatch(html, /\sonclick=/i, 'A interface não deve voltar a usar handlers inline.');
 assert.match(html, /type="module" src="\.\/js\/app\.js"/, 'Entrada JavaScript modular ausente.');
 assert.match(html, /option value="date"/, 'A opção de ordenação por data está ausente.');
@@ -26,7 +27,9 @@ assert.match(appSource, /dropados:\s*'date'/, 'Dropados devem usar data como ord
 assert.match(uiSource, /sort === 'date'/, 'A ordenação por data não foi implementada.');
 assert.match(appSource, /importSteamWishlist/, 'A interface não aciona a importação da wishlist Steam.');
 assert.match(appSource, /checkWishlist:\s*true/, 'A wishlist Steam deve ser verificada ao abrir o site.');
-assert.match(appSource, /wishlistImport\?\.imported\s*>\s*0\s*\|\|\s*wishlistImport\?\.removed\s*>\s*0/, 'Alterações automáticas da wishlist devem ser informadas ao usuário.');
+assert.match(appSource, /checkWishlistInBackground/, 'A wishlist automática não deve bloquear o carregamento da biblioteca.');
+assert.match(appSource, /sync-button.*refresh|refresh\(\{ checkWishlist: true \}\)/s, 'A ação principal deve atualizar a biblioteca sem sincronizar todos os troféus.');
+assert.match(appSource, /result\?\.imported\s*>\s*0\s*\|\|\s*result\?\.removed\s*>\s*0/, 'Alterações automáticas da wishlist devem ser informadas ao usuário.');
 assert.match(apiSource, /IMPORT_STEAM_WISHLIST/, 'A API não reconhece a importação da wishlist Steam.');
 assert.match(apiSource, /STEAM_WISHLIST_SOURCE_PREFIX/, 'Jogos importados precisam de uma origem técnica interna.');
 assert.match(apiSource, /syncWishlistSourceRows_/, 'Jogos removidos da wishlist precisam ser reconciliados no backend.');
@@ -159,6 +162,19 @@ const documentProperties = new Map([
 ]);
 const documentCache = new Map();
 const urlFetchCalls = [];
+function fakeFetchResponse(url) {
+  return {
+    getResponseCode: () => 200,
+    getContentText: () => {
+      if (url.includes('GetPlayerSummaries')) return JSON.stringify({ response: { players: [{ personaname: 'Herion', avatarfull: 'https://cdn.example/avatar.jpg', profileurl: 'https://steamcommunity.com/id/herion/' }] } });
+      if (url.includes('GetSteamLevel')) return JSON.stringify({ response: { player_level: 42 } });
+      if (url.includes('GetWishlistItemCount')) return JSON.stringify({ response: { count: 2 } });
+      if (url.includes('GetWishlist/v1')) return JSON.stringify({ response: { items: [{ appid: 220860 }, { appid: 233860 }] } });
+      if (url.includes('IStoreBrowseService')) return JSON.stringify({ response: { store_items: [{ appid: 220860, name: 'McPixel' }, { appid: 233860, name: 'Kenshi' }] } });
+      return JSON.stringify({ response: { game_count: 2, games: [{ playtime_forever: 120 }, { playtime_forever: 180 }] } });
+    }
+  };
+}
 const context = vm.createContext({
   SpreadsheetApp: { getActiveSpreadsheet: () => spreadsheet },
   PropertiesService: { getDocumentProperties: () => ({
@@ -169,20 +185,17 @@ const context = vm.createContext({
     get: (key) => documentCache.get(key) || null,
     put: (key, value) => documentCache.set(key, value)
   }) },
-  UrlFetchApp: { fetch: (url, options = {}) => {
-    urlFetchCalls.push({ url, options });
-    return ({
-    getResponseCode: () => 200,
-    getContentText: () => {
-      if (url.includes('GetPlayerSummaries')) return JSON.stringify({ response: { players: [{ personaname: 'Herion', avatarfull: 'https://cdn.example/avatar.jpg', profileurl: 'https://steamcommunity.com/id/herion/' }] } });
-      if (url.includes('GetSteamLevel')) return JSON.stringify({ response: { player_level: 42 } });
-      if (url.includes('GetWishlistItemCount')) return JSON.stringify({ response: { count: 2 } });
-      if (url.includes('GetWishlist/v1')) return JSON.stringify({ response: { items: [{ appid: 220860 }, { appid: 233860 }] } });
-      if (url.includes('IStoreBrowseService')) return JSON.stringify({ response: { store_items: [{ appid: 220860, name: 'McPixel' }, { appid: 233860, name: 'Kenshi' }] } });
-      return JSON.stringify({ response: { game_count: 2, games: [{ playtime_forever: 120 }, { playtime_forever: 180 }] } });
-    }
-    });
-  } },
+  UrlFetchApp: {
+    fetch: (url, options = {}) => {
+      urlFetchCalls.push({ url, options });
+      return fakeFetchResponse(url);
+    },
+    fetchAll: (requests) => requests.map((request) => {
+      const normalized = typeof request === 'string' ? { url: request } : request;
+      urlFetchCalls.push({ url: normalized.url, options: normalized });
+      return fakeFetchResponse(normalized.url);
+    })
+  },
   console
 });
 vm.runInContext(apiSource, context);
@@ -206,6 +219,11 @@ assert.equal(steamProfile.profileName, 'Herion');
 assert.equal(steamProfile.steamLevel, 42);
 assert.equal(steamProfile.steamOwnedGames, 2);
 assert.equal(steamProfile.steamHours, 5);
+assert.ok(documentProperties.has('checkpointSteamProfileV2'), 'O perfil Steam deve sobreviver à expiração do cache temporário.');
+const profileRequestCount = urlFetchCalls.length;
+documentCache.clear();
+assert.equal(context.getConnectedSteamProfile_().profileName, 'Herion');
+assert.equal(urlFetchCalls.length, profileRequestCount, 'O perfil persistido deve evitar novas chamadas à Steam durante seis horas.');
 assert.deepEqual(
   Array.from(context.fetchSteamWishlistGames_('76561198000000000'), (game) => game.name),
   ['McPixel', 'Kenshi'],

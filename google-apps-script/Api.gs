@@ -29,7 +29,7 @@ function doGet(e) {
 }
 
 function doPost(e) {
-  var lock = LockService.getDocumentLock();
+  var lock = null;
   try {
     var payload = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     requireApiToken_(payload.token || '');
@@ -38,7 +38,10 @@ function doPost(e) {
       return jsonOutput_(findCover_(payload));
     }
 
-    lock.waitLock(15000);
+    if (payload.action !== 'GET_LIBRARY' && payload.action !== 'IMPORT_STEAM_WISHLIST') {
+      lock = LockService.getDocumentLock();
+      lock.waitLock(10000);
+    }
     var result;
 
     switch (payload.action) {
@@ -85,7 +88,7 @@ function doPost(e) {
   } catch (error) {
     return jsonOutput_({ success: false, message: error.message || String(error) });
   } finally {
-    if (lock.hasLock()) lock.releaseLock();
+    if (lock && lock.hasLock()) lock.releaseLock();
   }
 }
 
@@ -254,6 +257,9 @@ function importSteamWishlist_() {
   var wishlistAppIds = {};
   wishlistGames.forEach(function (game) { wishlistAppIds[String(game.appid)] = true; });
 
+  var lock = LockService.getDocumentLock();
+  lock.waitLock(10000);
+  try {
   var sheet = getMainSheet_();
   var sourceSync = syncWishlistSourceRows_(sheet, wishlistAppIds);
 
@@ -303,6 +309,9 @@ function importSteamWishlist_() {
     skipped: skipped,
     removed: sourceSync.removed
   };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function fetchSteamWishlistGames_(steamId) {
@@ -322,8 +331,16 @@ function fetchSteamWishlistGames_(steamId) {
   }
 
   var itemsByAppId = {};
-  splitSteamWishlistBatches_(wishlistItems).forEach(function (batch) {
-    var storeData = fetchSteamJson_(buildSteamStoreItemsUrl_(batch));
+  var batches = splitSteamWishlistBatches_(wishlistItems);
+  var responses = UrlFetchApp.fetchAll(batches.map(function (batch) {
+    return {
+      url: buildSteamStoreItemsUrl_(batch),
+      muteHttpExceptions: true,
+      timeoutSeconds: 15
+    };
+  }));
+  responses.forEach(function (response) {
+    var storeData = parseSteamJsonResponse_(response);
     var storeItems = storeData && storeData.response && storeData.response.store_items;
     (storeItems || []).forEach(function (item) {
       var appId = Number(item && item.appid);
@@ -808,10 +825,20 @@ function getConnectedSteamProfile_() {
   };
   if (!steamApiKey || !steamId) return fallback;
 
+  var persistentKey = 'checkpointSteamProfileV2';
+  var persistent = null;
+  try {
+    persistent = JSON.parse(properties.getProperty(persistentKey) || 'null');
+  } catch (ignorePersistent) {}
+
   var cache = CacheService.getDocumentCache();
-  var cached = cache.get('checkpoint-steam-profile-v1');
+  var cached = cache.get('checkpoint-steam-profile-v2');
   if (cached) {
     try { return JSON.parse(cached); } catch (ignoreCache) {}
+  }
+  if (persistent && persistent.profile && Date.now() - Number(persistent.updatedAt || 0) < 21600000) {
+    cache.put('checkpoint-steam-profile-v2', JSON.stringify(persistent.profile), 21600);
+    return persistent.profile;
   }
 
   try {
@@ -853,18 +880,24 @@ function getConnectedSteamProfile_() {
       steamOwnedGames: ownedGames,
       steamHours: totalHours
     };
-    cache.put('checkpoint-steam-profile-v1', JSON.stringify(profile), 600);
+    cache.put('checkpoint-steam-profile-v2', JSON.stringify(profile), 21600);
+    properties.setProperty(persistentKey, JSON.stringify({ updatedAt: Date.now(), profile: profile }));
     return profile;
   } catch (error) {
     console.warn('Não foi possível sincronizar o perfil Steam: ' + error.message);
-    return fallback;
+    return persistent && persistent.profile ? persistent.profile : fallback;
   }
 }
 
 function fetchSteamJson_(url, options) {
   var requestOptions = options || {};
   requestOptions.muteHttpExceptions = true;
+  if (requestOptions.timeoutSeconds == null) requestOptions.timeoutSeconds = 15;
   var response = UrlFetchApp.fetch(url, requestOptions);
+  return parseSteamJsonResponse_(response);
+}
+
+function parseSteamJsonResponse_(response) {
   var status = response.getResponseCode();
   if (status < 200 || status >= 300) throw new Error('Steam respondeu com HTTP ' + status + '.');
   return JSON.parse(response.getContentText());
