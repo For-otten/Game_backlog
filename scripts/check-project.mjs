@@ -43,6 +43,10 @@ assert.deepEqual(
   parseConnectionUrl('https://script.google.com/macros/s/id/exec#token=secret'),
   { url: 'https://script.google.com/macros/s/id/exec', token: 'secret' }
 );
+assert.deepEqual(
+  parseConnectionUrl('https://script.google.com/macros/s/current-id/exec?token=secret'),
+  { url: 'https://script.google.com/macros/s/current-id/exec', token: 'secret' }
+);
 delete globalThis.localStorage;
 
 class FakeRange {

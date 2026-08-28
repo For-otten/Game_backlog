@@ -233,6 +233,7 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Backlog')
     .addItem('Adicionar jogo', 'showAddGameForm')
+    .addItem('Definir URL ativa do app', 'configurarUrlWebApp')
     .addItem('Ver URL de conexão', 'gerarTokenAPI')
     .addItem('Regenerar token da API', 'regenerarTokenAPI')
     .addToUi();
@@ -840,7 +841,18 @@ function gerarTokenAPI() {
     'URL de conexão do site',
     connectionUrl
       ? 'Cole esta URL no site. Ela já contém o token:\n\n' + connectionUrl
-      : 'Implante o Apps Script como app da Web e execute esta opção novamente.',
+      : 'A URL ativa não foi definida. Use Backlog → Definir URL ativa do app e informe a implantação terminada em /exec.',
+    SpreadsheetApp.getUi().ButtonSet.OK
+  );
+}
+
+function configurarUrlWebApp() {
+  var webAppUrl = promptAndSaveWebAppUrl_();
+  if (!webAppUrl) return;
+
+  SpreadsheetApp.getUi().alert(
+    'URL ativa salva',
+    'Esta implantação será usada nas próximas URLs de conexão:\n\n' + webAppUrl,
     SpreadsheetApp.getUi().ButtonSet.OK
   );
 }
@@ -861,14 +873,50 @@ function regenerarTokenAPI() {
     'Novo token gerado',
     connectionUrl
       ? 'A URL anterior deixou de funcionar. Cole esta nova URL no site:\n\n' + connectionUrl
-      : 'O token foi atualizado. Reimplante o app da Web para obter a nova URL de conexão.',
+      : 'O token foi atualizado, mas a URL ativa não foi definida. Use Backlog → Definir URL ativa do app.',
     ui.ButtonSet.OK
   );
 }
 
 function getConnectionUrl_(token) {
-  var webAppUrl = ScriptApp.getService().getUrl();
-  return webAppUrl ? webAppUrl + '#token=' + encodeURIComponent(token) : '';
+  var webAppUrl = getSavedWebAppUrl_();
+  if (!webAppUrl) webAppUrl = promptAndSaveWebAppUrl_();
+  return webAppUrl ? webAppUrl + '?token=' + encodeURIComponent(token) : '';
+}
+
+function getSavedWebAppUrl_() {
+  var properties = PropertiesService.getDocumentProperties();
+  var savedUrl = normalizePublishedWebAppUrl_(properties.getProperty('webAppUrl'));
+  if (!savedUrl) properties.deleteProperty('webAppUrl');
+  return savedUrl;
+}
+
+function promptAndSaveWebAppUrl_() {
+  var ui = SpreadsheetApp.getUi();
+  var currentUrl = getSavedWebAppUrl_();
+  var message = 'Cole a URL da implantação que funciona e termina em /exec. Ela ficará salva nesta planilha.';
+  if (currentUrl) message += '\n\nURL atual: ' + currentUrl;
+
+  var response = ui.prompt('URL ativa do app da Web', message, ui.ButtonSet.OK_CANCEL);
+  if (response.getSelectedButton() !== ui.Button.OK) return '';
+
+  var webAppUrl = normalizePublishedWebAppUrl_(response.getResponseText());
+  if (!webAppUrl) {
+    ui.alert(
+      'URL inválida',
+      'Use a URL publicada pelo Apps Script no formato https://script.google.com/macros/s/.../exec.',
+      ui.ButtonSet.OK
+    );
+    return '';
+  }
+
+  PropertiesService.getDocumentProperties().setProperty('webAppUrl', webAppUrl);
+  return webAppUrl;
+}
+
+function normalizePublishedWebAppUrl_(value) {
+  var cleanUrl = String(value || '').trim().split(/[?#]/)[0].replace(/\/+$/, '');
+  return /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/i.test(cleanUrl) ? cleanUrl : '';
 }
 
 // Retorna todos os dados mapeados exatamente como estão na planilha

@@ -21,8 +21,8 @@ google-apps-script/FormularioAdicionarJogo.html
 1. Abra **Extensões → Apps Script** na planilha.
 2. Substitua o conteúdo do projeto pelos três arquivos da pasta `google-apps-script`. Crie cada arquivo com o mesmo nome.
 3. Em **Implantar → Gerenciar implantações**, publique uma **nova versão** do app da Web. Execute como você e selecione **Qualquer pessoa** em “Quem pode acessar”. O token protege as operações da API.
-4. Recarregue a planilha e use **Backlog → Ver URL de conexão**.
-5. Cole no site a URL completa terminada em `/exec#token=...`. O site separa o token automaticamente; em um novo navegador, essa é a única informação que precisa ser digitada.
+4. Recarregue a planilha e use **Backlog → Definir URL ativa do app**. Cole a implantação terminada em `/exec` que você acabou de publicar. A planilha memoriza essa escolha e não tenta adivinhar entre implantações antigas.
+5. Use **Backlog → Ver URL de conexão** e cole no site a URL completa terminada em `/exec?token=...`. O site separa o token automaticamente; em um novo navegador, essa é a única informação que precisa ser digitada.
 
 Se `steamApiKey` e `steamId` já estiverem configurados nas propriedades da planilha, o site sincroniza automaticamente nome, avatar, link, nível, quantidade de jogos e horas públicas do perfil Steam. As chaves SteamGridDB, RAWG e IGDB informadas no site são gravadas nas propriedades privadas do Apps Script e reutilizadas em outros navegadores.
 
