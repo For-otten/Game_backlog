@@ -1,9 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
   <title id="title">Checkpoint</title>
-  <desc id="desc">Marco de checkpoint geométrico em azul sobre fundo grafite.</desc>
+  <desc id="desc">Terminal de salvamento geométrico com controles de jogo e confirmação de checkpoint.</desc>
   <rect width="512" height="512" rx="104" fill="#0b0d11"/>
   <rect x="25" y="25" width="462" height="462" rx="82" fill="none" stroke="#2a3039" stroke-width="10"/>
-  <path d="M148 390V122h224l-54 78 54 78H148" fill="#151d26" stroke="#9ac4eb" stroke-width="28" stroke-linejoin="miter"/>
-  <path d="M148 390h150" fill="none" stroke="#75a7d8" stroke-width="28" stroke-linecap="square"/>
-  <path d="M176 200h142" fill="none" stroke="#75a7d8" stroke-width="18"/>
+  <path d="M126 96h226l42 42v278H126z" fill="#151a21" stroke="#9ac4eb" stroke-width="22" stroke-linejoin="miter"/>
+  <path d="M352 96v52h42" fill="none" stroke="#75a7d8" stroke-width="22"/>
+  <rect x="164" y="133" width="152" height="82" fill="#0b0d11" stroke="#3f6487" stroke-width="14"/>
+  <path d="m190 177 26 24 70-67" fill="none" stroke="#9ac4eb" stroke-width="18" stroke-linecap="square" stroke-linejoin="miter"/>
+  <path d="M183 265h42v38h38v42h-38v38h-42v-38h-38v-42h38z" fill="#75a7d8"/>
+  <rect x="303" y="283" width="42" height="42" transform="rotate(45 324 304)" fill="#9ac4eb"/>
+  <rect x="343" y="337" width="34" height="34" transform="rotate(45 360 354)" fill="#4f779c"/>
+  <path d="M158 416h204" fill="none" stroke="#75a7d8" stroke-width="22" stroke-linecap="square"/>
 </svg>
