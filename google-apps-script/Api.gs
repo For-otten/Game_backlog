@@ -253,14 +253,15 @@ function importSteamWishlist_() {
   var steamId = String(PropertiesService.getDocumentProperties().getProperty('steamId') || '').trim();
   if (!steamId) throw new Error('Configure o Steam ID nas propriedades da planilha antes de importar a wishlist.');
 
-  var wishlistGames = fetchSteamWishlistGames_(steamId);
+  var sheet = getMainSheet_();
+  var knownNames = readWishlistSourceNames_(sheet);
+  var wishlistGames = fetchSteamWishlistGames_(steamId, knownNames);
   var wishlistAppIds = {};
   wishlistGames.forEach(function (game) { wishlistAppIds[String(game.appid)] = true; });
 
   var lock = LockService.getDocumentLock();
   lock.waitLock(10000);
   try {
-  var sheet = getMainSheet_();
   var sourceSync = syncWishlistSourceRows_(sheet, wishlistAppIds);
 
   var database = readGameDatabase_();
@@ -314,45 +315,64 @@ function importSteamWishlist_() {
   }
 }
 
-function fetchSteamWishlistGames_(steamId) {
-  var countUrl = 'https://api.steampowered.com/IWishlistService/GetWishlistItemCount/v1/?steamid=' + encodeURIComponent(steamId);
-  var countData = fetchSteamJson_(countUrl);
-  var count = countData && countData.response && countData.response.count;
-  if (typeof count !== 'number') {
-    throw new Error('A wishlist não está pública no perfil Steam.');
-  }
-  if (count === 0) return [];
-
+function fetchSteamWishlistGames_(steamId, knownNames) {
   var wishlistUrl = 'https://api.steampowered.com/IWishlistService/GetWishlist/v1/?steamid=' + encodeURIComponent(steamId);
   var wishlistData = fetchSteamJson_(wishlistUrl);
   var wishlistItems = wishlistData && wishlistData.response && wishlistData.response.items;
-  if (!Array.isArray(wishlistItems) || !wishlistItems.length) {
+  if (!wishlistData || !wishlistData.response || !Array.isArray(wishlistItems)) {
     throw new Error('A Steam não retornou os itens da wishlist. Tente novamente mais tarde.');
   }
 
-  var itemsByAppId = {};
-  var batches = splitSteamWishlistBatches_(wishlistItems);
-  var responses = UrlFetchApp.fetchAll(batches.map(function (batch) {
+  if (!wishlistItems.length) return [];
+
+  var resolvedNames = knownNames || {};
+  var unresolvedItems = wishlistItems.filter(function (item) {
+    var appId = String(Number(item && item.appid));
+    return Number(appId) > 0 && !resolvedNames[appId];
+  });
+  var batches = splitSteamWishlistBatches_(unresolvedItems);
+  var responses = batches.length ? UrlFetchApp.fetchAll(batches.map(function (batch) {
     return {
       url: buildSteamStoreItemsUrl_(batch),
       muteHttpExceptions: true,
       timeoutSeconds: 15
     };
-  }));
+  })) : [];
   responses.forEach(function (response) {
     var storeData = parseSteamJsonResponse_(response);
     var storeItems = storeData && storeData.response && storeData.response.store_items;
     (storeItems || []).forEach(function (item) {
       var appId = Number(item && item.appid);
       var name = String((item && item.name) || '').trim();
-      if (appId && name) itemsByAppId[appId] = name;
+      if (appId && name) resolvedNames[String(appId)] = name;
     });
   });
 
   return wishlistItems.map(function (item) {
     var appId = Number(item && item.appid);
-    return { appid: appId, name: itemsByAppId[appId] || '' };
+    return { appid: appId, name: resolvedNames[String(appId)] || '' };
   }).filter(function (item) { return item.appid; });
+}
+
+function readWishlistSourceNames_(sheet) {
+  var lastRow = lastNamedRow_(sheet, GAME_DB.backlogStart, 1);
+  var namesByAppId = {};
+  if (lastRow < GAME_DB.backlogStart || sheet.getMaxColumns() < GAME_DB.sourceColumn) return namesByAppId;
+
+  var rows = sheet.getRange(
+    GAME_DB.backlogStart,
+    1,
+    lastRow - GAME_DB.backlogStart + 1,
+    GAME_DB.sourceColumn
+  ).getValues();
+  rows.forEach(function (row) {
+    var tag = String(row[GAME_DB.sourceColumn - 1] || '').trim();
+    if (tag.indexOf(STEAM_WISHLIST_SOURCE_PREFIX) !== 0) return;
+    var appId = tag.slice(STEAM_WISHLIST_SOURCE_PREFIX.length);
+    var name = String(row[0] || '').trim();
+    if (appId && name) namesByAppId[appId] = name;
+  });
+  return namesByAppId;
 }
 
 function splitSteamWishlistBatches_(wishlistItems) {

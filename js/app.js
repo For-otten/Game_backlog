@@ -138,24 +138,38 @@ class GameBacklogApp {
   async refresh({ silent = false, checkWishlist = false } = {}) {
     if (this.busy || !this.settings.isConfigured()) return;
     this.busy = true;
-    let shouldCheckWishlist = false;
+    let refreshSheetInBackground = false;
+    let wishlistImport = null;
     if (!silent) this.view.showToast('Sincronizando biblioteca', { loading: true });
     try {
-      const response = await this.api.getLibrary();
-      this.library = this.cache.write(response.data);
-      if (response.profile || response.configuration) {
-        this.profileState = this.profileCache.write(
-          response.profile || this.profileState.profile,
-          response.configuration || this.profileState.configuration
-        );
-        this.api.setConfiguration(this.profileState.configuration);
+      const shouldCheckWishlist = checkWishlist && !this.wishlistChecked
+        && Boolean(this.profileState.configuration?.steamWishlist || this.profileState.configuration?.steam);
+
+      if (shouldCheckWishlist) {
+        this.wishlistChecked = true;
+        try {
+          wishlistImport = await this.api.importSteamWishlist();
+          if (wishlistImport.data) this.library = this.cache.write(wishlistImport.data);
+          this.render();
+          this.view.setConnection('online', 'Wishlist atualizada');
+          refreshSheetInBackground = true;
+        } catch (error) {
+          console.warn(`Wishlist Steam não importada: ${error.message}`);
+        }
       }
 
-      this.render();
-      this.view.setConnection('online', 'Planilha conectada');
-      if (!silent) this.view.showToast('Biblioteca atualizada.');
-      shouldCheckWishlist = checkWishlist && !this.wishlistChecked
-        && Boolean(this.profileState.configuration?.steamWishlist || this.profileState.configuration?.steam);
+      if (!refreshSheetInBackground) {
+        const response = await this.api.getLibrary();
+        this.applyLibraryResponse(response);
+        this.render();
+        this.view.setConnection('online', 'Planilha conectada');
+      }
+
+      if (!silent) {
+        this.view.showToast(wishlistImport?.imported > 0 || wishlistImport?.removed > 0
+          ? wishlistImport.message
+          : 'Biblioteca atualizada.');
+      }
     } catch (error) {
       this.view.setConnection('error', 'Falha na conexão');
       this.view.showToast(error.message, { error: true, duration: 5200 });
@@ -163,21 +177,28 @@ class GameBacklogApp {
       this.busy = false;
     }
 
-    if (shouldCheckWishlist) this.checkWishlistInBackground();
+    if (refreshSheetInBackground) setTimeout(() => this.refreshLibraryInBackground(), 0);
   }
 
-  async checkWishlistInBackground() {
-    if (this.wishlistChecked) return;
-    this.wishlistChecked = true;
+  applyLibraryResponse(response) {
+    this.library = this.cache.write(response.data);
+    if (response.profile || response.configuration) {
+      this.profileState = this.profileCache.write(
+        response.profile || this.profileState.profile,
+        response.configuration || this.profileState.configuration
+      );
+      this.api.setConfiguration(this.profileState.configuration);
+    }
+  }
+
+  async refreshLibraryInBackground() {
+    if (this.busy || !this.settings.isConfigured()) return;
     try {
-      const result = await this.api.importSteamWishlist();
-      if (result.data) {
-        this.library = this.cache.write(result.data);
-        this.render();
-      }
-      if (result?.imported > 0 || result?.removed > 0) this.view.showToast(result.message);
+      const response = await this.api.getLibrary();
+      this.applyLibraryResponse(response);
+      this.render();
     } catch (error) {
-      console.warn(`Wishlist Steam não importada: ${error.message}`);
+      console.warn(`Atualização da planilha em segundo plano falhou: ${error.message}`);
     }
   }
 

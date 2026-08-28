@@ -27,9 +27,9 @@ assert.match(appSource, /dropados:\s*'date'/, 'Dropados devem usar data como ord
 assert.match(uiSource, /sort === 'date'/, 'A ordenação por data não foi implementada.');
 assert.match(appSource, /importSteamWishlist/, 'A interface não aciona a importação da wishlist Steam.');
 assert.match(appSource, /checkWishlist:\s*true/, 'A wishlist Steam deve ser verificada ao abrir o site.');
-assert.match(appSource, /checkWishlistInBackground/, 'A wishlist automática não deve bloquear o carregamento da biblioteca.');
+assert.match(appSource, /refreshLibraryInBackground/, 'A planilha deve ser relida em segundo plano após a wishlist.');
 assert.match(appSource, /sync-button.*refresh|refresh\(\{ checkWishlist: true \}\)/s, 'A ação principal deve atualizar a biblioteca sem sincronizar todos os troféus.');
-assert.match(appSource, /result\?\.imported\s*>\s*0\s*\|\|\s*result\?\.removed\s*>\s*0/, 'Alterações automáticas da wishlist devem ser informadas ao usuário.');
+assert.match(appSource, /wishlistImport/, 'A importação automática da wishlist deve atualizar a biblioteca antes da releitura da planilha.');
 assert.match(apiSource, /IMPORT_STEAM_WISHLIST/, 'A API não reconhece a importação da wishlist Steam.');
 assert.match(apiSource, /STEAM_WISHLIST_SOURCE_PREFIX/, 'Jogos importados precisam de uma origem técnica interna.');
 assert.match(apiSource, /syncWishlistSourceRows_/, 'Jogos removidos da wishlist precisam ser reconciliados no backend.');
