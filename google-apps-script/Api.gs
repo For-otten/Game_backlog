@@ -322,36 +322,50 @@ function fetchSteamWishlistGames_(steamId) {
   }
 
   var itemsByAppId = {};
-  var batchSize = 100;
-  for (var offset = 0; offset < wishlistItems.length; offset += batchSize) {
-    var batch = wishlistItems.slice(offset, offset + batchSize).filter(function (item) {
-      return Number(item && item.appid) > 0;
-    });
-    if (!batch.length) continue;
-
-    var request = {
-      ids: batch.map(function (item) { return { appid: Number(item.appid) }; }),
-      context: { language: 'brazilian', country_code: 'BR', steam_realm: 1 },
-      data_request: { include_basic_info: true }
-    };
-    var itemsUrl = 'https://api.steampowered.com/IStoreBrowseService/GetItems/v1/';
-    var storeData = fetchSteamJson_(itemsUrl, {
-      method: 'post',
-      contentType: 'application/x-www-form-urlencoded',
-      payload: { input_json: JSON.stringify(request) }
-    });
+  splitSteamWishlistBatches_(wishlistItems).forEach(function (batch) {
+    var storeData = fetchSteamJson_(buildSteamStoreItemsUrl_(batch));
     var storeItems = storeData && storeData.response && storeData.response.store_items;
     (storeItems || []).forEach(function (item) {
       var appId = Number(item && item.appid);
       var name = String((item && item.name) || '').trim();
       if (appId && name) itemsByAppId[appId] = name;
     });
-  }
+  });
 
   return wishlistItems.map(function (item) {
     var appId = Number(item && item.appid);
     return { appid: appId, name: itemsByAppId[appId] || '' };
   }).filter(function (item) { return item.appid; });
+}
+
+function splitSteamWishlistBatches_(wishlistItems) {
+  var maxUrlLength = 1900;
+  var batches = [];
+  var current = [];
+
+  (wishlistItems || []).forEach(function (item) {
+    if (!(Number(item && item.appid) > 0)) return;
+    var candidate = current.concat([item]);
+    if (current.length && buildSteamStoreItemsUrl_(candidate).length > maxUrlLength) {
+      batches.push(current);
+      current = [item];
+    } else {
+      current = candidate;
+    }
+  });
+
+  if (current.length) batches.push(current);
+  return batches;
+}
+
+function buildSteamStoreItemsUrl_(items) {
+  var request = {
+    ids: items.map(function (item) { return { appid: Number(item.appid) }; }),
+    context: { language: 'brazilian', country_code: 'BR', steam_realm: 1 },
+    data_request: { include_basic_info: true }
+  };
+  return 'https://api.steampowered.com/IStoreBrowseService/GetItems/v1/?input_json=' +
+    encodeURIComponent(JSON.stringify(request));
 }
 
 function syncWishlistSourceRows_(sheet, currentAppIds) {

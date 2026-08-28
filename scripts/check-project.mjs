@@ -16,7 +16,6 @@ for (const id of ['status-filters', 'games-list', 'game-form', 'settings-form', 
 assert.match(html, /id="profile-provider"/, 'Identificação da plataforma do perfil ausente.');
 assert.match(html, /rel="manifest" href="\.\/manifest\.webmanifest"/, 'Manifesto PWA ausente no HTML.');
 assert.match(html, /class="brand-mark"/, 'Marca vetorial ausente no cabeçalho.');
-assert.match(html, /id="install-button"/, 'Ação de instalação PWA ausente.');
 assert.match(html, /id="wishlist-import-button"/, 'A ação de importar a wishlist Steam está ausente.');
 assert.doesNotMatch(html, /\sonclick=/i, 'A interface não deve voltar a usar handlers inline.');
 assert.match(html, /type="module" src="\.\/js\/app\.js"/, 'Entrada JavaScript modular ausente.');
@@ -39,6 +38,7 @@ assert.ok(manifest.icons.some((icon) => icon.sizes === '512x512'));
 assert.ok(manifest.icons.some((icon) => icon.purpose === 'maskable'));
 assert.match(serviceWorker, /self\.addEventListener\('fetch'/, 'O service worker precisa atender requisições offline.');
 assert.match(appSource, /serviceWorker\.register\('\.\/service-worker\.js'\)/, 'O service worker não é registrado pela aplicação.');
+assert.doesNotMatch(appSource, /beforeinstallprompt/, 'A interface deve preservar o prompt nativo de instalação do navegador.');
 assert.doesNotMatch(checkpointIcon, />\s*CP\s*</i, 'A marca não deve usar o monograma CP.');
 
 const stored = new Map([
@@ -212,9 +212,13 @@ assert.deepEqual(
   'A wishlist deve resolver os AppIDs em nomes de jogos.'
 );
 const storeBrowseCall = urlFetchCalls.find((call) => call.url.includes('IStoreBrowseService'));
-assert.equal(storeBrowseCall.options.method, 'post', 'A consulta dos nomes da wishlist deve usar POST para não exceder o limite de URL do Apps Script.');
-assert.ok(storeBrowseCall.options.payload.input_json.includes('220860'));
-assert.doesNotMatch(storeBrowseCall.url, /input_json=/, 'Os AppIDs não devem ser enviados na URL.');
+assert.notEqual(storeBrowseCall.options.method, 'post', 'O endpoint público da loja Steam rejeita POST com HTTP 405.');
+assert.match(storeBrowseCall.url, /input_json=/);
+assert.ok(storeBrowseCall.url.length <= 1900, 'Cada consulta da wishlist deve permanecer abaixo do limite de URL do Apps Script.');
+const largeWishlist = Array.from({ length: 300 }, (_, index) => ({ appid: 100000 + index }));
+const wishlistBatches = Array.from(context.splitSteamWishlistBatches_(largeWishlist), (batch) => Array.from(batch));
+assert.ok(wishlistBatches.length > 1, 'Wishlists grandes devem ser divididas em várias consultas.');
+wishlistBatches.forEach((batch) => assert.ok(context.buildSteamStoreItemsUrl_(batch).length <= 1900));
 
 const sourceHeader = Array(26).fill('');
 sourceHeader[0] = 'Nome';
