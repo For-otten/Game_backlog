@@ -6,6 +6,6 @@
   "scripts": {
     "dev": "node scripts/dev-server.mjs",
     "build": "node scripts/build.mjs",
-    "check": "node --check js/api.js && node --check js/ui.js && node --check js/app.js && node scripts/check-project.mjs"
+    "check": "node --check js/api.js && node --check js/ui.js && node --check js/app.js && node --check service-worker.js && node scripts/check-project.mjs"
   }
 }

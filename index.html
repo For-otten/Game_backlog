@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#0b0d11">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Checkpoint">
     <meta name="description" content="Seu backlog, progresso e conquistas em uma biblioteca pessoal.">
     <meta property="og:title" content="Checkpoint — Game Backlog">
     <meta property="og:description" content="Seu backlog, no ponto certo.">
@@ -13,16 +18,20 @@
     <meta name="twitter:description" content="Seu backlog, no ponto certo.">
     <meta name="twitter:image" content="https://checkpoint-game-backlog.dev-vicentini.chatgpt.site/public/og.png">
     <title>Checkpoint — Game Backlog</title>
-    <link rel="icon" href="data:,">
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="icon" type="image/svg+xml" href="./public/icons/checkpoint.svg">
+    <link rel="apple-touch-icon" href="./public/icons/apple-touch-icon.png">
     <link rel="stylesheet" href="./css/styles.css">
   </head>
   <body>
     <header class="topbar">
       <a class="brand" href="#library" aria-label="Checkpoint — início">
+        <img class="brand-mark" src="./public/icons/checkpoint.svg" alt="">
         <span><strong>Checkpoint</strong><small>Biblioteca de jogos</small></span>
       </a>
       <div class="topbar-actions">
         <span class="connection" id="connection-label">Não configurado</span>
+        <button class="button button--ghost" type="button" id="install-button" hidden>Instalar app</button>
         <button class="button button--ghost" type="button" id="sync-button">Sincronizar</button>
         <button class="button button--ghost" type="button" data-open-dialog="settings-dialog">Configurações</button>
       </div>

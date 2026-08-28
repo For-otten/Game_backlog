@@ -6,11 +6,17 @@ const html = readFileSync('index.html', 'utf8');
 const apiSource = readFileSync('google-apps-script/Api.gs', 'utf8');
 const appSource = readFileSync('js/app.js', 'utf8');
 const uiSource = readFileSync('js/ui.js', 'utf8');
+const manifest = JSON.parse(readFileSync('manifest.webmanifest', 'utf8'));
+const serviceWorker = readFileSync('service-worker.js', 'utf8');
+const checkpointIcon = readFileSync('public/icons/checkpoint.svg', 'utf8');
 
 for (const id of ['status-filters', 'games-list', 'game-form', 'settings-form', 'confirm-dialog', 'toast']) {
   assert.match(html, new RegExp(`id=["']${id}["']`), `Elemento #${id} ausente no HTML.`);
 }
 assert.match(html, /id="profile-provider"/, 'Identificação da plataforma do perfil ausente.');
+assert.match(html, /rel="manifest" href="\.\/manifest\.webmanifest"/, 'Manifesto PWA ausente no HTML.');
+assert.match(html, /class="brand-mark"/, 'Marca vetorial ausente no cabeçalho.');
+assert.match(html, /id="install-button"/, 'Ação de instalação PWA ausente.');
 assert.match(html, /id="wishlist-import-button"/, 'A ação de importar a wishlist Steam está ausente.');
 assert.doesNotMatch(html, /\sonclick=/i, 'A interface não deve voltar a usar handlers inline.');
 assert.match(html, /type="module" src="\.\/js\/app\.js"/, 'Entrada JavaScript modular ausente.');
@@ -26,6 +32,14 @@ assert.match(apiSource, /IMPORT_STEAM_WISHLIST/, 'A API não reconhece a importa
 assert.match(apiSource, /STEAM_WISHLIST_SOURCE_PREFIX/, 'Jogos importados precisam de uma origem técnica interna.');
 assert.match(apiSource, /syncWishlistSourceRows_/, 'Jogos removidos da wishlist precisam ser reconciliados no backend.');
 assert.doesNotMatch(html, /steam_wishlist:/, 'A origem técnica da wishlist não deve aparecer no frontend.');
+assert.equal(manifest.start_url, './');
+assert.equal(manifest.display, 'standalone');
+assert.ok(manifest.icons.some((icon) => icon.sizes === '192x192'));
+assert.ok(manifest.icons.some((icon) => icon.sizes === '512x512'));
+assert.ok(manifest.icons.some((icon) => icon.purpose === 'maskable'));
+assert.match(serviceWorker, /self\.addEventListener\('fetch'/, 'O service worker precisa atender requisições offline.');
+assert.match(appSource, /serviceWorker\.register\('\.\/service-worker\.js'\)/, 'O service worker não é registrado pela aplicação.');
+assert.doesNotMatch(checkpointIcon, />\s*CP\s*</i, 'A marca não deve usar o monograma CP.');
 
 const stored = new Map([
   ['gs_url', 'https://script.google.com/macros/s/deployment-id/exec'],
@@ -144,6 +158,7 @@ const documentProperties = new Map([
   ['steamgridApiKey', 'cover-secret']
 ]);
 const documentCache = new Map();
+const urlFetchCalls = [];
 const context = vm.createContext({
   SpreadsheetApp: { getActiveSpreadsheet: () => spreadsheet },
   PropertiesService: { getDocumentProperties: () => ({
@@ -154,7 +169,9 @@ const context = vm.createContext({
     get: (key) => documentCache.get(key) || null,
     put: (key, value) => documentCache.set(key, value)
   }) },
-  UrlFetchApp: { fetch: (url) => ({
+  UrlFetchApp: { fetch: (url, options = {}) => {
+    urlFetchCalls.push({ url, options });
+    return ({
     getResponseCode: () => 200,
     getContentText: () => {
       if (url.includes('GetPlayerSummaries')) return JSON.stringify({ response: { players: [{ personaname: 'Herion', avatarfull: 'https://cdn.example/avatar.jpg', profileurl: 'https://steamcommunity.com/id/herion/' }] } });
@@ -164,7 +181,8 @@ const context = vm.createContext({
       if (url.includes('IStoreBrowseService')) return JSON.stringify({ response: { store_items: [{ appid: 220860, name: 'McPixel' }, { appid: 233860, name: 'Kenshi' }] } });
       return JSON.stringify({ response: { game_count: 2, games: [{ playtime_forever: 120 }, { playtime_forever: 180 }] } });
     }
-  }) },
+    });
+  } },
   console
 });
 vm.runInContext(apiSource, context);
@@ -193,6 +211,10 @@ assert.deepEqual(
   ['McPixel', 'Kenshi'],
   'A wishlist deve resolver os AppIDs em nomes de jogos.'
 );
+const storeBrowseCall = urlFetchCalls.find((call) => call.url.includes('IStoreBrowseService'));
+assert.equal(storeBrowseCall.options.method, 'post', 'A consulta dos nomes da wishlist deve usar POST para não exceder o limite de URL do Apps Script.');
+assert.ok(storeBrowseCall.options.payload.input_json.includes('220860'));
+assert.doesNotMatch(storeBrowseCall.url, /input_json=/, 'Os AppIDs não devem ser enviados na URL.');
 
 const sourceHeader = Array(26).fill('');
 sourceHeader[0] = 'Nome';

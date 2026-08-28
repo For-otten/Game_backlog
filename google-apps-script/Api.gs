@@ -334,8 +334,12 @@ function fetchSteamWishlistGames_(steamId) {
       context: { language: 'brazilian', country_code: 'BR', steam_realm: 1 },
       data_request: { include_basic_info: true }
     };
-    var itemsUrl = 'https://api.steampowered.com/IStoreBrowseService/GetItems/v1/?input_json=' + encodeURIComponent(JSON.stringify(request));
-    var storeData = fetchSteamJson_(itemsUrl);
+    var itemsUrl = 'https://api.steampowered.com/IStoreBrowseService/GetItems/v1/';
+    var storeData = fetchSteamJson_(itemsUrl, {
+      method: 'post',
+      contentType: 'application/x-www-form-urlencoded',
+      payload: { input_json: JSON.stringify(request) }
+    });
     var storeItems = storeData && storeData.response && storeData.response.store_items;
     (storeItems || []).forEach(function (item) {
       var appId = Number(item && item.appid);
@@ -843,8 +847,10 @@ function getConnectedSteamProfile_() {
   }
 }
 
-function fetchSteamJson_(url) {
-  var response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+function fetchSteamJson_(url, options) {
+  var requestOptions = options || {};
+  requestOptions.muteHttpExceptions = true;
+  var response = UrlFetchApp.fetch(url, requestOptions);
   var status = response.getResponseCode();
   if (status < 200 || status >= 300) throw new Error('Steam respondeu com HTTP ' + status + '.');
   return JSON.parse(response.getContentText());

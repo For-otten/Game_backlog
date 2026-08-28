@@ -2,6 +2,8 @@
 
 Interface web para gerenciar uma biblioteca de jogos armazenada no Google Sheets. A versão 2 separa apresentação, comportamento e integração com a planilha, além de trocar o antigo `onEdit` simulado por operações diretas e atômicas.
 
+O projeto também funciona como PWA instalável. O manifesto, o service worker e os ícones derivados da marca vetorial ficam disponíveis em qualquer hospedagem HTTPS, incluindo GitHub Pages e Sites.
+
 ## Estrutura
 
 ```text

@@ -7,13 +7,22 @@ const sourceFiles = [
   'js/api.js',
   'js/ui.js',
   'js/app.js',
+  'manifest.webmanifest',
+  'service-worker.js',
+  'public/icons/checkpoint.svg',
+  'public/icons/checkpoint-192.png',
+  'public/icons/checkpoint-512.png',
+  'public/icons/checkpoint-maskable-512.png',
+  'public/icons/apple-touch-icon.png',
   'public/og.png'
 ];
 const types = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
-  '.png': 'image/png'
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
+  '.webmanifest': 'application/manifest+json; charset=utf-8'
 };
 
 rmSync('dist', { recursive: true, force: true });
@@ -46,7 +55,9 @@ export default {
     return new Response(decode(asset.body), {
       headers: {
         'Content-Type': asset.type,
-        'Cache-Control': url.pathname === '/' || url.pathname.endsWith('.html') ? 'no-cache' : 'public, max-age=86400'
+        'Cache-Control': url.pathname === '/' || url.pathname.endsWith('.html') || url.pathname.endsWith('service-worker.js') || url.pathname.endsWith('.webmanifest')
+          ? 'no-cache'
+          : 'public, max-age=86400'
       }
     });
   }
